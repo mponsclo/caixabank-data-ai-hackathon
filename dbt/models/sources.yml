@@ -1,0 +1,18 @@
+version: 2
+
+sources:
+  - name: raw
+    description: Raw data files from the hackathon
+    tables:
+      - name: transactions_data
+        description: Credit card transactions for the 2010s decade
+        meta:
+          external_location: "../data/raw/transactions_data.csv"
+      - name: users_data
+        description: Client demographic and financial information
+        meta:
+          external_location: "../data/raw/users_data.csv"
+      - name: cards_data
+        description: Credit and debit card details per client
+        meta:
+          external_location: "../data/raw/cards_data.csv"

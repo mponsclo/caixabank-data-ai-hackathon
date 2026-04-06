@@ -1,0 +1,7 @@
+caixabank:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "../data/dbt_output/caixabank.duckdb"
+      threads: 4

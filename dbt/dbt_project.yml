@@ -1,0 +1,18 @@
+name: 'caixabank_analytics'
+version: '1.0.0'
+
+profile: 'caixabank'
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  caixabank_analytics:
+    staging:
+      +materialized: view
+    intermediate:
+      +materialized: view
+    marts:
+      +materialized: table

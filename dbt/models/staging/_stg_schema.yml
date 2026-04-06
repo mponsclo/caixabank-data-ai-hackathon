@@ -1,0 +1,43 @@
+version: 2
+
+models:
+  - name: stg_transactions
+    description: Cleaned transaction data with parsed amounts and dates
+    columns:
+      - name: transaction_id
+        description: Unique transaction identifier
+        tests:
+          - not_null
+      - name: client_id
+        tests:
+          - not_null
+      - name: amount
+        description: Transaction amount (positive=earnings, negative=expenses)
+
+  - name: stg_users
+    description: Client demographic and financial data with cleaned currency fields
+    columns:
+      - name: client_id
+        description: Unique client identifier
+        tests:
+          - unique
+          - not_null
+
+  - name: stg_cards
+    description: Card details with parsed expiry dates and boolean flags
+    columns:
+      - name: card_id
+        description: Unique card identifier
+        tests:
+          - not_null
+      - name: client_id
+        tests:
+          - not_null
+
+  - name: stg_mcc_codes
+    description: Merchant Category Code reference table
+    columns:
+      - name: mcc
+        tests:
+          - unique
+          - not_null

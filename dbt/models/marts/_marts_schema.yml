@@ -1,0 +1,24 @@
+version: 2
+
+models:
+  - name: mart_client_monthly_expenses
+    description: >
+      Monthly aggregated expenses and earnings per client.
+      Used as input for the expense forecasting model (Task 4).
+    columns:
+      - name: client_id
+        tests:
+          - not_null
+      - name: expense_month
+        tests:
+          - not_null
+
+  - name: mart_fraud_features
+    description: >
+      Feature-engineered transaction data for fraud detection (Task 3).
+      Includes time, amount, card, and user features.
+    columns:
+      - name: transaction_id
+        tests:
+          - not_null
+          - unique
