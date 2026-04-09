@@ -1,0 +1,50 @@
+name: Terraform Apply
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "terraform/**"
+  workflow_dispatch: # Manual trigger
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TF_WORKING_DIR: terraform
+
+jobs:
+  apply:
+    name: Apply
+    runs-on: ubuntu-latest
+    environment: production # GitHub Environment with required reviewers
+    defaults:
+      run:
+        working-directory: ${{ env.TF_WORKING_DIR }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.GH_ACTIONS_SA_EMAIL }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install SOPS
+        uses: mdgreenwald/mozilla-sops-action@v1.6.0
+
+      - name: Decrypt tfvars
+        run: sops --decrypt terraform.tfvars.enc > terraform.tfvars
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.x"
+
+      - name: Terraform init
+        run: terraform init
+
+      - name: Terraform apply
+        run: terraform apply -auto-approve

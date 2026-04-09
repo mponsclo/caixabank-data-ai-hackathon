@@ -1,0 +1,7 @@
+# Infrastructure changes require explicit review.
+# The bootstrap is especially sensitive — it controls the GCP project,
+# service accounts, KMS keys, and Workload Identity Federation.
+terraform/              @mponsclo
+terraform/bootstrap/    @mponsclo
+.github/workflows/      @mponsclo
+.sops.yaml              @mponsclo

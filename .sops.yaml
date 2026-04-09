@@ -1,0 +1,8 @@
+creation_rules:
+  # Encrypt Terraform variable files with GCP KMS
+  - path_regex: terraform/.*\.tfvars$
+    gcp_kms: projects/mpc-caixabank-ai/locations/global/keyRings/sops-keyring/cryptoKeys/sops-key
+
+  # Encrypt any .env files
+  - path_regex: \.env\.enc$
+    gcp_kms: projects/mpc-caixabank-ai/locations/global/keyRings/sops-keyring/cryptoKeys/sops-key
