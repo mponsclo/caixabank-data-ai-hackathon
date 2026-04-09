@@ -1,0 +1,15 @@
+{
+	"data": "ENC[AES256_GCM,data:hz1fADqYYwZpuIZOWpFTHTWUzadrwbFUvsW+mHsgyXjVmKG16xxMnz0yTBmupueZDCv2GkibUN8JFLZjTEx/ErgCKyiX0rQdpTNuSuQi48vIjfUKy9EYV+SCX2nKuuCgbQWXFjHjd9W7BwQta5iyvf4l8BXSWoK42tsoUsJQSM+JEGTfS3EwGxOfVfCZsGI0yPPnlNm+SmETXY7Jzc1IfPgN0GK1sYAUsGd9ETE=,iv:1f/+08zCTE3zXS++dL0IpN+b89oZJUOTSafS89MfX0M=,tag:c8seBbEKBcn39bRgIgpm1Q==,type:str]",
+	"sops": {
+		"gcp_kms": [
+			{
+				"resource_id": "projects/mpc-caixabank-ai/locations/global/keyRings/sops-keyring/cryptoKeys/sops-key",
+				"created_at": "2026-04-09T06:51:33Z",
+				"enc": "CiQAgc7UkjGwrfibmkOJ09aJuGhVNh2MYzwwe8PgiWXQcjC9lvkSSQC88eildvi/UcCvbJrSyfTMi9GAJN48TwjSE+mn6iT8/plqYuAxSdiPjmGXeDjwJqgwJ+DySExA5kkFzbw4WbBR3zl7+3BDq6Y="
+			}
+		],
+		"lastmodified": "2026-04-09T06:51:33Z",
+		"mac": "ENC[AES256_GCM,data:NlWLE3p8UnmlZi9qq/yGnrQgzU1lUJ5g4MqvdECajMDnl0hpOnA7Z5uiX6p/PstZVzmEPkUYlzpFZWvtmz4qxSp1rflse+RduOS/KngIevFJjIVk4Xp/c2oYsVLo0eOLg034MhmC9H20qSPtCZgPk7N6T5GFX1z4HLMlOF9+rgg=,iv:H07Zs5ZHpTYl9afFaL/DZnaGomHMmmcFgddwMNPAEIc=,tag:DIn3sEQ+Z0SO/UqMroWuTQ==,type:str]",
+		"version": "3.12.2"
+	}
+}
