@@ -8,6 +8,7 @@ numpy>=1.26.0
 # Data pipeline
 dbt-bigquery>=1.7.0
 google-cloud-bigquery>=3.0.0
+duckdb>=1.0.0  # Required: model pkl files reference src/models/train_model.py which imports duckdb
 
 # API serving
 fastapi>=0.110.0
