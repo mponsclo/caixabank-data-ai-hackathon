@@ -1,4 +1,4 @@
-.PHONY: help install dbt-build dbt-seed dbt-run dbt-test train export-models serve test docker-build docker-run docker-compose-up docker-compose-down load-data clean
+.PHONY: help install dbt-build dbt-seed dbt-run dbt-test train export-models serve test lint format docker-build docker-run docker-compose-up docker-compose-down load-data clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -55,6 +55,16 @@ docker-compose-down: ## Stop services
 
 test: ## Run all tests
 	python -m pytest tests/ -v
+
+# --- Code Quality ---
+
+lint: ## Run linter (ruff check + format check)
+	ruff check .
+	ruff format --check .
+
+format: ## Auto-format code (ruff fix + format)
+	ruff check --fix .
+	ruff format .
 
 # --- Cleanup ---
 
