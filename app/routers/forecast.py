@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from app.schemas import ForecastRequest, ForecastResponse, MonthPrediction
 
@@ -22,6 +22,7 @@ def predict_forecast(request: Request, body: ForecastRequest):
         raise HTTPException(status_code=404, detail=f"Client {body.client_id} not found")
 
     import pandas as pd
+
     df = pd.DataFrame([client_data])
 
     if forecast_features:
@@ -35,9 +36,11 @@ def predict_forecast(request: Request, body: ForecastRequest):
         model_key = f"forecast_h{h}"
         if model_key in models:
             pred = models[model_key].predict(df)[0]
-            predictions.append(MonthPrediction(
-                horizon=h,
-                predicted_expense=max(0.0, float(pred)),
-            ))
+            predictions.append(
+                MonthPrediction(
+                    horizon=h,
+                    predicted_expense=max(0.0, float(pred)),
+                )
+            )
 
     return ForecastResponse(client_id=body.client_id, predictions=predictions)

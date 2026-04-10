@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.model_loader import load_models
-from app.routers import health, fraud, forecast, agent
+from app.routers import agent, forecast, fraud, health
 
 
 @asynccontextmanager

@@ -9,20 +9,20 @@ Iterative fraud detection pipeline:
 """
 
 import json
+
 import duckdb
-import pandas as pd
-import numpy as np
 import lightgbm as lgb
+import numpy as np
+import pandas as pd
 from sklearn.metrics import (
+    average_precision_score,
     balanced_accuracy_score,
     classification_report,
-    average_precision_score,
     f1_score,
     precision_score,
     recall_score,
 )
 from sklearn.model_selection import KFold
-
 
 DB_PATH = "data/dbt_output/caixabank.duckdb"
 LABELS_PATH = "data/raw/train_fraud_labels.json"
@@ -30,77 +30,145 @@ PREDICTIONS_PATH = "predictions/predictions_3.json"
 
 # All columns to load from the mart (superset — we select features after encoding)
 LOAD_COLS = [
-    "transaction_id", "transaction_date", "merchant_id",
+    "transaction_id",
+    "transaction_date",
+    "merchant_id",
     # amount
-    "amount", "abs_amount", "log_amount", "is_expense",
-    "amount_to_limit_ratio", "amount_zscore",
-    "client_avg_amount_last50", "client_std_amount_last50",
-    "amount_vs_client_max", "above_client_p90",
+    "amount",
+    "abs_amount",
+    "log_amount",
+    "is_expense",
+    "amount_to_limit_ratio",
+    "amount_zscore",
+    "client_avg_amount_last50",
+    "client_std_amount_last50",
+    "amount_vs_client_max",
+    "above_client_p90",
     # time
-    "txn_hour", "txn_day_of_week", "txn_month", "txn_year", "is_weekend",
+    "txn_hour",
+    "txn_day_of_week",
+    "txn_month",
+    "txn_year",
+    "is_weekend",
     # errors
-    "has_bad_cvv", "has_bad_expiration", "has_bad_card_number",
-    "has_bad_pin", "has_insufficient_balance", "has_technical_glitch",
-    "has_any_error", "card_errors_7d",
+    "has_bad_cvv",
+    "has_bad_expiration",
+    "has_bad_card_number",
+    "has_bad_pin",
+    "has_insufficient_balance",
+    "has_technical_glitch",
+    "has_any_error",
+    "card_errors_7d",
     # channel + geographic
-    "is_online", "is_out_of_home_state",
+    "is_online",
+    "is_out_of_home_state",
     # velocity
-    "seconds_since_last_txn", "card_txn_count_1h", "card_txn_count_24h",
-    "card_txn_count_7d", "card_amount_sum_24h",
+    "seconds_since_last_txn",
+    "card_txn_count_1h",
+    "card_txn_count_24h",
+    "card_txn_count_7d",
+    "card_amount_sum_24h",
     # inter-purchase gap stats (Exp 8)
     "gap_zscore",
     # behavioral
-    "card_mcc_freq", "card_merchant_freq", "card_distinct_mcc_7d",
-    "client_distinct_cards_24h", "is_new_merchant", "is_new_mcc",
+    "card_mcc_freq",
+    "card_merchant_freq",
+    "card_distinct_mcc_7d",
+    "client_distinct_cards_24h",
+    "is_new_merchant",
+    "is_new_mcc",
     "rapid_succession",
     # combined risk signals (Exp 8)
-    "online_new_merchant", "online_high_amount",
-    "oos_new_merchant", "error_online",
+    "online_new_merchant",
+    "online_high_amount",
+    "oos_new_merchant",
+    "error_online",
     # card (Exp 8)
-    "credit_limit", "card_has_chip", "card_age_months",
+    "credit_limit",
+    "card_has_chip",
+    "card_age_months",
     # user
-    "current_age", "credit_score", "total_debt", "yearly_income",
+    "current_age",
+    "credit_score",
+    "total_debt",
+    "yearly_income",
     "debt_to_income_ratio",
     # categorical
-    "use_chip", "card_brand", "card_type", "mcc",
+    "use_chip",
+    "card_brand",
+    "card_type",
+    "mcc",
 ]
 
 # Features used by the model (after target encoding adds new columns)
 FEATURE_COLS = [
     # amount + spending anomaly (Exp 8)
-    "amount", "abs_amount", "log_amount", "is_expense",
-    "amount_to_limit_ratio", "amount_zscore",
-    "client_avg_amount_last50", "client_std_amount_last50",
-    "amount_vs_client_max", "above_client_p90",
+    "amount",
+    "abs_amount",
+    "log_amount",
+    "is_expense",
+    "amount_to_limit_ratio",
+    "amount_zscore",
+    "client_avg_amount_last50",
+    "client_std_amount_last50",
+    "amount_vs_client_max",
+    "above_client_p90",
     # time
-    "txn_hour", "txn_day_of_week", "txn_month", "txn_year", "is_weekend",
+    "txn_hour",
+    "txn_day_of_week",
+    "txn_month",
+    "txn_year",
+    "is_weekend",
     # errors
-    "has_bad_cvv", "has_bad_expiration", "has_bad_card_number",
-    "has_bad_pin", "has_insufficient_balance", "has_technical_glitch",
-    "has_any_error", "card_errors_7d",
+    "has_bad_cvv",
+    "has_bad_expiration",
+    "has_bad_card_number",
+    "has_bad_pin",
+    "has_insufficient_balance",
+    "has_technical_glitch",
+    "has_any_error",
+    "card_errors_7d",
     # channel + geographic
-    "is_online", "is_out_of_home_state",
+    "is_online",
+    "is_out_of_home_state",
     # velocity
-    "seconds_since_last_txn", "card_txn_count_1h", "card_txn_count_24h",
-    "card_txn_count_7d", "card_amount_sum_24h",
+    "seconds_since_last_txn",
+    "card_txn_count_1h",
+    "card_txn_count_24h",
+    "card_txn_count_7d",
+    "card_amount_sum_24h",
     # inter-purchase gap (Exp 8)
     "gap_zscore",
     # behavioral
-    "card_mcc_freq", "card_merchant_freq", "card_distinct_mcc_7d",
-    "client_distinct_cards_24h", "is_new_merchant", "is_new_mcc",
+    "card_mcc_freq",
+    "card_merchant_freq",
+    "card_distinct_mcc_7d",
+    "client_distinct_cards_24h",
+    "is_new_merchant",
+    "is_new_mcc",
     "rapid_succession",
     # combined risk signals (Exp 8)
-    "online_new_merchant", "online_high_amount",
-    "oos_new_merchant", "error_online",
+    "online_new_merchant",
+    "online_high_amount",
+    "oos_new_merchant",
+    "error_online",
     # card (Exp 8)
-    "credit_limit", "card_has_chip", "card_age_months",
+    "credit_limit",
+    "card_has_chip",
+    "card_age_months",
     # user
-    "current_age", "credit_score", "total_debt", "yearly_income",
+    "current_age",
+    "credit_score",
+    "total_debt",
+    "yearly_income",
     "debt_to_income_ratio",
     # categorical
-    "use_chip", "card_brand", "card_type",
+    "use_chip",
+    "card_brand",
+    "card_type",
     # target-encoded (Exp 5)
-    "mcc_te", "merchant_id_te",
+    "mcc_te",
+    "merchant_id_te",
 ]
 
 CATEGORICAL_COLS = ["use_chip", "card_brand", "card_type"]
@@ -111,6 +179,7 @@ TE_ALPHA = 10  # smoothing strength
 
 
 # ---------- Data Loading ----------
+
 
 def load_labels():
     """Load fraud labels as {transaction_id: 0/1} dict."""
@@ -142,6 +211,7 @@ def load_features(con, transaction_ids, chunk_label="data"):
 
 
 # ---------- Target Encoding ----------
+
 
 def target_encode_oof(df, col, target_col, alpha=TE_ALPHA, n_splits=5):
     """Out-of-fold target encoding to prevent leakage.
@@ -176,6 +246,7 @@ def target_encode_apply(df, col, train_df, target_col, alpha=TE_ALPHA):
 
 # ---------- Feature Preparation ----------
 
+
 def prepare_features(df):
     """Convert types and handle nulls."""
     df = df.copy()
@@ -185,12 +256,22 @@ def prepare_features(df):
         df["card_has_chip"] = df["card_has_chip"].astype(int)
     # Fill NaN in velocity/behavioral features
     fill_zero = [
-        "seconds_since_last_txn", "card_txn_count_1h", "card_txn_count_24h",
-        "card_txn_count_7d", "card_amount_sum_24h", "card_mcc_freq",
-        "card_merchant_freq", "amount_zscore", "card_errors_7d",
-        "client_distinct_cards_24h", "client_avg_amount_last50",
-        "client_std_amount_last50", "amount_vs_client_max",
-        "above_client_p90", "gap_zscore", "card_age_months",
+        "seconds_since_last_txn",
+        "card_txn_count_1h",
+        "card_txn_count_24h",
+        "card_txn_count_7d",
+        "card_amount_sum_24h",
+        "card_mcc_freq",
+        "card_merchant_freq",
+        "amount_zscore",
+        "card_errors_7d",
+        "client_distinct_cards_24h",
+        "client_avg_amount_last50",
+        "client_std_amount_last50",
+        "amount_vs_client_max",
+        "above_client_p90",
+        "gap_zscore",
+        "card_age_months",
     ]
     for col in fill_zero:
         if col in df.columns:
@@ -200,12 +281,13 @@ def prepare_features(df):
 
 # ---------- Evaluation ----------
 
+
 def evaluate(y_true, proba, label=""):
     """Evaluate model: AUPRC, best BA threshold, best F1 threshold."""
     auprc = average_precision_score(y_true, proba)
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"  {label}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"AUPRC (Average Precision): {auprc:.4f}")
 
     best_ba, best_ba_t = 0, 0.5
@@ -214,12 +296,14 @@ def evaluate(y_true, proba, label=""):
         p = (proba >= t).astype(int)
         ba = balanced_accuracy_score(y_true, p)
         f1 = f1_score(y_true, p, zero_division=0)
-        if ba > best_ba: best_ba, best_ba_t = ba, t
-        if f1 > best_f1: best_f1, best_f1_t = f1, t
+        if ba > best_ba:
+            best_ba, best_ba_t = ba, t
+        if f1 > best_f1:
+            best_f1, best_f1_t = f1, t
 
     # BA-optimal
     preds_ba = (proba >= best_ba_t).astype(int)
-    print(f"\n--- Hackathon (BA optimized) ---")
+    print("\n--- Hackathon (BA optimized) ---")
     print(f"Threshold: {best_ba_t:.2f}, BA: {best_ba:.4f}")
     print(classification_report(y_true, preds_ba, target_names=["No Fraud", "Fraud"]))
 
@@ -228,7 +312,7 @@ def evaluate(y_true, proba, label=""):
     f1_val = f1_score(y_true, preds_f1)
     prec_val = precision_score(y_true, preds_f1, zero_division=0)
     rec_val = recall_score(y_true, preds_f1, zero_division=0)
-    print(f"--- Production (F1 optimized) ---")
+    print("--- Production (F1 optimized) ---")
     print(f"Threshold: {best_f1_t:.2f}, F1: {f1_val:.4f}, P: {prec_val:.4f}, R: {rec_val:.4f}")
     print(classification_report(y_true, preds_f1, target_names=["No Fraud", "Fraud"]))
 
@@ -268,6 +352,7 @@ def focal_loss_eval(y_true, y_pred):
 
 # ---------- Main Pipeline ----------
 
+
 def train_and_predict():
     """Train fraud detection model and write predictions to predictions_3.json."""
     labels = load_labels()
@@ -289,8 +374,7 @@ def train_and_predict():
     for col in TE_COLS:
         train_df[f"{col}_te"] = target_encode_oof(train_df, col, "label")
         pred_df[f"{col}_te"] = target_encode_apply(pred_df, col, train_df, "label")
-        print(f"  {col}_te: train mean={train_df[f'{col}_te'].mean():.6f}, "
-              f"pred mean={pred_df[f'{col}_te'].mean():.6f}")
+        print(f"  {col}_te: train mean={train_df[f'{col}_te'].mean():.6f}, pred mean={pred_df[f'{col}_te'].mean():.6f}")
 
     # Prepare features
     train_df = prepare_features(train_df)
@@ -330,7 +414,8 @@ def train_and_predict():
     )
 
     model.fit(
-        X_train, y_train,
+        X_train,
+        y_train,
         eval_set=[(X_val, y_val)],
         eval_metric=focal_loss_eval,
         callbacks=[
@@ -349,7 +434,8 @@ def train_and_predict():
     # Feature importance
     importance = sorted(
         zip(FEATURE_COLS, model.feature_importances_),
-        key=lambda x: x[1], reverse=True,
+        key=lambda x: x[1],
+        reverse=True,
     )
     print("\nTop 20 features:")
     for feat, imp in importance[:20]:
@@ -373,7 +459,9 @@ def train_and_predict():
 
     fraud_preds = sum(1 for v in output["target"].values() if v == "Yes")
     print(f"\nPredictions written to {PREDICTIONS_PATH}")
-    print(f"Predicted fraud: {fraud_preds:,} / {len(output['target']):,} ({fraud_preds/len(output['target'])*100:.2f}%)")
+    print(
+        f"Predicted fraud: {fraud_preds:,} / {len(output['target']):,} ({fraud_preds / len(output['target']) * 100:.2f}%)"
+    )
 
     return auprc, ba, f1, importance
 

@@ -1,7 +1,9 @@
 import os
-import requests
 import time
+
 import pandas as pd
+import requests
+
 
 def fetch_with_retry(url: str, retries: int = 3, delay: int = 5) -> dict:
     """
@@ -29,6 +31,7 @@ def fetch_with_retry(url: str, retries: int = 3, delay: int = 5) -> dict:
             response.raise_for_status()
     raise Exception("Failed to fetch data after multiple retries.")
 
+
 def fetch_clients_data(url: str, client_id: str) -> dict:
     """
     Fetch client data for a given client ID.
@@ -44,11 +47,12 @@ def fetch_clients_data(url: str, client_id: str) -> dict:
     """
     url = f"{url}?client_id={client_id}"
     data = fetch_with_retry(url)
-    if 'client_id' in data and data['client_id'] is None:
+    if "client_id" in data and data["client_id"] is None:
         print("Received incorrect data format.")
     return data
 
-def fetch_all_clients_data(url:str, client_ids: list[str], csv_name: str) -> pd.DataFrame:
+
+def fetch_all_clients_data(url: str, client_ids: list[str], csv_name: str) -> pd.DataFrame:
     """
     Fetch data for all clients given a list of client IDs.
 
@@ -68,10 +72,7 @@ def fetch_all_clients_data(url:str, client_ids: list[str], csv_name: str) -> pd.
             data = fetch_clients_data(url, client_id)
             print(data)
             # Assuming the data is in the format provided in the user prompt
-            client_data = {
-                'client_id': data['client_id'],
-                **data['values']
-            }
+            client_data = {"client_id": data["client_id"], **data["values"]}
 
             # Append the client data to the list
             all_client_data.append(client_data)
@@ -83,9 +84,10 @@ def fetch_all_clients_data(url:str, client_ids: list[str], csv_name: str) -> pd.
     df = pd.DataFrame(all_client_data)
 
     # Save the DataFrame to a CSV file
-    df.to_csv(f'./data/raw/{csv_name}.csv', index=False)
+    df.to_csv(f"./data/raw/{csv_name}.csv", index=False)
+
 
 if __name__ == "__main__":
     API_URL = os.environ.get("API_URL", "")
     client_ids = [str(client) for client in range(1, 1000)]
-    df = fetch_all_clients_data(API_URL, client_ids, 'card_data')
+    df = fetch_all_clients_data(API_URL, client_ids, "card_data")

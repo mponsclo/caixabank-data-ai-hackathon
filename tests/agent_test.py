@@ -1,15 +1,15 @@
-from agent.agent import run_agent
 import os
-import pandas as pd
 import shutil
+
+import pandas as pd
+
+from agent.agent import run_agent
 
 current_folder = os.path.dirname(os.path.abspath(__file__))
 parent_folder = os.path.dirname(current_folder)
 report_folder = os.path.join(parent_folder, "reports")
 data_folder = os.path.join(parent_folder, "data")
-sample_data = pd.read_csv(
-    f"{data_folder}/raw/transactions_data.csv", parse_dates=["date"]
-)
+sample_data = pd.read_csv(f"{data_folder}/raw/transactions_data.csv", parse_dates=["date"])
 
 
 def delete_reports():
@@ -49,9 +49,7 @@ def test_agent_1():
     test_passed = check_all_values(output, submitted_output)
     expected_length = 1 if output["create_report"] else 0
     try:
-        pdf_files = [
-            file for file in os.listdir(report_folder) if file.endswith(".pdf")
-        ]
+        pdf_files = [file for file in os.listdir(report_folder) if file.endswith(".pdf")]
         condition_pdf = len(pdf_files) == expected_length
     except Exception as e:
         print(e)
@@ -82,9 +80,7 @@ def test_agent_2():
     test_passed = check_all_values(output, submitted_output)
     expected_length = 1 if output["create_report"] else 0
     try:
-        pdf_files = [
-            file for file in os.listdir(report_folder) if file.endswith(".pdf")
-        ]
+        pdf_files = [file for file in os.listdir(report_folder) if file.endswith(".pdf")]
         condition_pdf = len(pdf_files) == expected_length
     except Exception as e:
         print(e)
@@ -115,9 +111,7 @@ def test_agent_3():
     test_passed = check_all_values(output, submitted_output)
     expected_length = 1 if output["create_report"] else 0
     try:
-        pdf_files = [
-            file for file in os.listdir(report_folder) if file.endswith(".pdf")
-        ]
+        pdf_files = [file for file in os.listdir(report_folder) if file.endswith(".pdf")]
         condition_pdf = len(pdf_files) == expected_length
     except Exception as e:
         print(e)

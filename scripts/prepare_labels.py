@@ -5,8 +5,8 @@ Input format:  {"target": {"txn_id_1": "Yes", "txn_id_2": "No", ...}}
 Output format: transaction_id,is_fraud (CSV with header)
 """
 
-import json
 import csv
+import json
 import os
 
 INPUT_PATH = "data/raw/train_fraud_labels.json"

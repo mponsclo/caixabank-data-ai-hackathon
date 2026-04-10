@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from app.schemas import FraudRequest, FraudResponse
 
@@ -42,10 +42,13 @@ def predict_fraud(request: Request, body: FraudRequest):
     if "mcc" in te:
         features["mcc_te"] = te["mcc"].get(body.mcc, te["mcc"].get("__global_mean__", 0))
     if "merchant_id" in te:
-        features["merchant_id_te"] = te["merchant_id"].get(body.merchant_id, te["merchant_id"].get("__global_mean__", 0))
+        features["merchant_id_te"] = te["merchant_id"].get(
+            body.merchant_id, te["merchant_id"].get("__global_mean__", 0)
+        )
 
     # Fill missing features with 0
     import pandas as pd
+
     df = pd.DataFrame([features])
     for col in feature_cols:
         if col not in df.columns:
@@ -63,6 +66,7 @@ def predict_fraud(request: Request, body: FraudRequest):
     raw_score = model.predict(df)[0]
     # Focal loss returns raw logits — apply sigmoid to get probability
     import math
+
     prob = 1.0 / (1.0 + math.exp(-raw_score))
     is_fraud = bool(prob >= FRAUD_THRESHOLD)
 

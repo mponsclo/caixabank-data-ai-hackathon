@@ -1,6 +1,7 @@
 """Load serialized ML models at startup."""
 
 import os
+
 import joblib
 
 MODELS_DIR = os.environ.get("MODELS_DIR", "outputs/models")

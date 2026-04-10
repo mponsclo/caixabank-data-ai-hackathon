@@ -1,13 +1,15 @@
-from data.data_functions import (
-    earnings_and_expenses,
-    expenses_summary,
-    cash_flow_summary,
-)
-import pandas as pd
-import matplotlib.pyplot as plt
 import os
 import shutil
 from pathlib import Path
+
+import matplotlib.pyplot as plt
+import pandas as pd
+
+from data.data_functions import (
+    cash_flow_summary,
+    earnings_and_expenses,
+    expenses_summary,
+)
 
 plt.switch_backend("Agg")
 sample_data = pd.read_csv("data/raw/transactions_data.csv", parse_dates=["date"])
@@ -26,13 +28,11 @@ def test_earnings_and_expenses_1():
         if not isinstance(answer, pd.DataFrame):
             print("Returned object is not a dataframe.")
             answer = pd.DataFrame()
-        expected_answer = pd.DataFrame(
-            {"Earnings": [176279.33], "Expenses": [-18246.0]}
-        )
+        expected_answer = pd.DataFrame({"Earnings": [176279.33], "Expenses": [-18246.0]})
 
         pd.testing.assert_frame_equal(answer, expected_answer)
         test_passed = True
-    except Exception as e:
+    except Exception:
         print("Not the expected output.")
         test_passed = False
     assert test_passed
@@ -50,9 +50,9 @@ def test_earnings_and_expenses_2():
         "2020-01-31",
     )
     try:
-        answer = earnings_and_expenses(df, user_id, start_date, end_date)
-    except:
-        answer = pd.DataFrame()
+        earnings_and_expenses(df, user_id, start_date, end_date)
+    except Exception:
+        pass
     condition = Path(f"{image_folder}/earnings_and_expenses.png").is_file()
 
     assert condition
@@ -139,7 +139,7 @@ def test_expenses_summary_1():
         pd.testing.assert_frame_equal(answer, expected_answer)
 
         test_passed = True
-    except Exception as e:
+    except Exception:
         test_passed = False
 
     assert test_passed
@@ -157,9 +157,9 @@ def test_expenses_summary_2():
         "2016-11-30",
     )
     try:
-        answer = expenses_summary(df, user_id, start_date, end_date)
-    except:
-        answer = pd.DataFrame()
+        expenses_summary(df, user_id, start_date, end_date)
+    except Exception:
+        pass
     condition = Path(f"{image_folder}/expenses_summary.png").is_file()
 
     assert condition
@@ -231,7 +231,7 @@ def test_cash_flow_summary_1():
         pd.testing.assert_frame_equal(answer, expected_answer)
 
         test_passed = True
-    except Exception as e:
+    except Exception:
         test_passed = False
 
     assert test_passed
@@ -261,7 +261,7 @@ def test_cash_flow_summary_2():
         pd.testing.assert_frame_equal(answer, expected_answer)
 
         test_passed = True
-    except Exception as e:
+    except Exception:
         test_passed = False
 
     assert test_passed

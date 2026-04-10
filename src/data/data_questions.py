@@ -4,8 +4,9 @@ Each function takes file paths, creates an in-memory DuckDB connection,
 and returns query results as DataFrames.
 """
 
-import duckdb
 import json
+
+import duckdb
 
 
 def question_1(cards_path: str) -> dict:

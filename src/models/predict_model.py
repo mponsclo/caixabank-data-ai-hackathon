@@ -19,18 +19,19 @@ Architecture:
 """
 
 import json
-import duckdb
-import pandas as pd
-import numpy as np
-import lightgbm as lgb
-from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 
+import duckdb
+import lightgbm as lgb
+import numpy as np
+import pandas as pd
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 DB_PATH = "data/dbt_output/caixabank.duckdb"
 PREDICTIONS_PATH = "predictions/predictions_4.json"
 
 
 # ---------- Data Loading ----------
+
 
 def load_monthly_expenses():
     """Load monthly expense aggregations from dbt mart."""
@@ -76,6 +77,7 @@ def load_prediction_targets():
 
 # ---------- Feature Engineering ----------
 
+
 def build_features(monthly_df, demographics_df):
     """Build features for each client-month row.
 
@@ -91,12 +93,8 @@ def build_features(monthly_df, demographics_df):
 
     # Rolling statistics (shifted by 1 to avoid leakage)
     for window in [3, 6, 12]:
-        df[f"rmean_{window}"] = g.transform(
-            lambda x: x.shift(1).rolling(window, min_periods=1).mean()
-        )
-        df[f"rstd_{window}"] = g.transform(
-            lambda x: x.shift(1).rolling(window, min_periods=1).std()
-        )
+        df[f"rmean_{window}"] = g.transform(lambda x: x.shift(1).rolling(window, min_periods=1).mean())
+        df[f"rstd_{window}"] = g.transform(lambda x: x.shift(1).rolling(window, min_periods=1).std())
 
     df["rmedian_6"] = g.transform(lambda x: x.shift(1).rolling(6, min_periods=1).median())
     df["rmin_6"] = g.transform(lambda x: x.shift(1).rolling(6, min_periods=1).min())
@@ -150,32 +148,56 @@ def build_features(monthly_df, demographics_df):
 
 FEATURE_COLS = [
     # Lags
-    "lag_1", "lag_2", "lag_3", "lag_6", "lag_12",
+    "lag_1",
+    "lag_2",
+    "lag_3",
+    "lag_6",
+    "lag_12",
     # Rolling stats
-    "rmean_3", "rmean_6", "rmean_12",
-    "rstd_3", "rstd_6", "rstd_12",
-    "rmedian_6", "rmin_6", "rmax_6",
+    "rmean_3",
+    "rmean_6",
+    "rmean_12",
+    "rstd_3",
+    "rstd_6",
+    "rstd_12",
+    "rmedian_6",
+    "rmin_6",
+    "rmax_6",
     # Trend/momentum
-    "trend_3v12", "trend_3v6", "momentum_1", "momentum_3",
+    "trend_3v12",
+    "trend_3v6",
+    "momentum_1",
+    "momentum_3",
     # Volatility
-    "cv_12", "cv_6",
+    "cv_12",
+    "cv_6",
     # Zero-expense frequency
     "zero_freq_6m",
     # Earnings
-    "earn_lag1", "earn_rmean_3", "earn_expense_ratio",
+    "earn_lag1",
+    "earn_rmean_3",
+    "earn_expense_ratio",
     # Transactions
-    "txn_lag1", "txn_rmean_3", "avg_expense_lag1",
+    "txn_lag1",
+    "txn_rmean_3",
+    "avg_expense_lag1",
     # Spike/range
-    "max_ratio", "range_6",
+    "max_ratio",
+    "range_6",
     # Demographics
-    "current_age", "credit_score", "yearly_income",
-    "total_debt", "num_credit_cards", "debt_to_income",
+    "current_age",
+    "credit_score",
+    "yearly_income",
+    "total_debt",
+    "num_credit_cards",
+    "debt_to_income",
     # Calendar
     "month_of_year",
 ]
 
 
 # ---------- Direct Multi-Step Training ----------
+
 
 def build_direct_targets(featured_df):
     """Build target columns for h=1, h=2, h=3 direct forecasting.
@@ -190,6 +212,7 @@ def build_direct_targets(featured_df):
 
 
 # ---------- Validation ----------
+
 
 def walk_forward_validate(featured_df, n_val_months=8):
     """Walk-forward validation with proper direct targets and multiple metrics."""
@@ -219,10 +242,18 @@ def walk_forward_validate(featured_df, n_val_months=8):
             y_val = val[f"target_h{h}"]
 
             model = lgb.LGBMRegressor(
-                n_estimators=500, learning_rate=0.03, max_depth=6,
-                num_leaves=31, min_child_samples=30, subsample=0.8,
-                colsample_bytree=0.8, reg_alpha=0.5, reg_lambda=2.0,
-                random_state=42, n_jobs=-1, verbose=-1,
+                n_estimators=500,
+                learning_rate=0.03,
+                max_depth=6,
+                num_leaves=31,
+                min_child_samples=30,
+                subsample=0.8,
+                colsample_bytree=0.8,
+                reg_alpha=0.5,
+                reg_lambda=2.0,
+                random_state=42,
+                n_jobs=-1,
+                verbose=-1,
             )
             model.fit(X_train, y_train)
             preds = np.maximum(model.predict(X_val), 0)
@@ -248,6 +279,7 @@ def walk_forward_validate(featured_df, n_val_months=8):
 
 
 # ---------- Training & Prediction ----------
+
 
 def train_and_predict():
     """Train expense forecast models and write predictions to predictions_4.json."""
@@ -279,10 +311,18 @@ def train_and_predict():
         y = h_data[f"target_h{h}"]
 
         model = lgb.LGBMRegressor(
-            n_estimators=500, learning_rate=0.03, max_depth=6,
-            num_leaves=31, min_child_samples=30, subsample=0.8,
-            colsample_bytree=0.8, reg_alpha=0.5, reg_lambda=2.0,
-            random_state=42, n_jobs=-1, verbose=-1,
+            n_estimators=500,
+            learning_rate=0.03,
+            max_depth=6,
+            num_leaves=31,
+            min_child_samples=30,
+            subsample=0.8,
+            colsample_bytree=0.8,
+            reg_alpha=0.5,
+            reg_lambda=2.0,
+            random_state=42,
+            n_jobs=-1,
+            verbose=-1,
         )
         model.fit(X, y)
         models[h] = model
@@ -291,7 +331,8 @@ def train_and_predict():
     # Feature importance (h=1)
     importance = sorted(
         zip(FEATURE_COLS, models[1].feature_importances_),
-        key=lambda x: x[1], reverse=True,
+        key=lambda x: x[1],
+        reverse=True,
     )
     print("\nTop 15 features (h=1):")
     for feat, imp in importance[:15]:
@@ -331,8 +372,7 @@ def train_and_predict():
 
     all_preds = [v for md in output["target"].values() for v in md.values()]
     print(f"\nPredictions written to {PREDICTIONS_PATH}")
-    print(f"Total: {len(all_preds)}, Mean: ${np.mean(all_preds):,.2f}, "
-          f"Median: ${np.median(all_preds):,.2f}")
+    print(f"Total: {len(all_preds)}, Mean: ${np.mean(all_preds):,.2f}, Median: ${np.median(all_preds):,.2f}")
     print(f"Validation R2: {val_r2:.4f}")
 
     return val_r2

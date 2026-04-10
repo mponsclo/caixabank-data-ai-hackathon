@@ -20,16 +20,16 @@ BACKEND = os.environ.get("AGENT_LLM_BACKEND", "regex")
 def _extract_dates_vertex(prompt: str) -> tuple[str | None, str | None]:
     """Vertex AI Gemini date extraction (scaffold — not yet active)."""
     try:
-        from google.cloud import aiplatform
         from vertexai.generative_models import GenerativeModel
 
         model = GenerativeModel("gemini-1.5-flash")
         response = model.generate_content(
             f"Extract start_date and end_date from this request. "
-            f"Return JSON only: {{\"start_date\": \"YYYY-MM-DD\", \"end_date\": \"YYYY-MM-DD\"}}.\n\n"
+            f'Return JSON only: {{"start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD"}}.\n\n'
             f"Request: {prompt}"
         )
         import json
+
         result = json.loads(response.text)
         return result.get("start_date"), result.get("end_date")
     except Exception:
@@ -40,11 +40,14 @@ def _extract_dates_ollama(prompt: str) -> tuple[str | None, str | None]:
     """Ollama local LLM date extraction (for development/testing)."""
     try:
         from langchain_ollama import ChatOllama
+
         llm = ChatOllama(model="llama3.2:1b", temperature=0)
 
         from src.agent.tools import EXTRACTION_PROMPT
+
         response = llm.invoke(EXTRACTION_PROMPT.format(input=prompt))
         import json
+
         result = json.loads(response.content)
         return result.get("start_date"), result.get("end_date")
     except Exception:
@@ -54,6 +57,7 @@ def _extract_dates_ollama(prompt: str) -> tuple[str | None, str | None]:
 def _extract_dates_regex(prompt: str) -> tuple[str | None, str | None]:
     """Regex-based date extraction (deterministic, always available)."""
     from src.agent.tools import regex_extract_dates
+
     result = regex_extract_dates(prompt)
     if result is None:
         return None, None

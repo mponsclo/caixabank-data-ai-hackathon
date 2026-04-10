@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 
-
 # --- Health ---
+
 
 class HealthResponse(BaseModel):
     status: str
@@ -9,6 +9,7 @@ class HealthResponse(BaseModel):
 
 
 # --- Fraud Detection ---
+
 
 class FraudRequest(BaseModel):
     transaction_id: str
@@ -35,6 +36,7 @@ class FraudResponse(BaseModel):
 
 # --- Expense Forecasting ---
 
+
 class ForecastRequest(BaseModel):
     client_id: int
 
@@ -50,6 +52,7 @@ class ForecastResponse(BaseModel):
 
 
 # --- Agent Report ---
+
 
 class AgentRequest(BaseModel):
     client_id: int

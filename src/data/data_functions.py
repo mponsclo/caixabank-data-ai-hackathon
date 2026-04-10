@@ -1,12 +1,12 @@
-import os
 import json
+import os
 
-import pandas as pd
 import duckdb
 import matplotlib
+import pandas as pd
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-
 
 MCC_CODES_PATH = os.path.join(os.path.dirname(__file__), "../../data/raw/mcc_codes.json")
 FIGURES_DIR = "reports/figures"
@@ -18,15 +18,11 @@ def _parse_amount_col(df: pd.DataFrame) -> pd.DataFrame:
     """Ensure the amount column is numeric (handles '$' prefixed strings)."""
     if df["amount"].dtype == object:
         df = df.copy()
-        df["amount"] = pd.to_numeric(
-            df["amount"].str.replace("$", "", regex=False).str.replace(",", "", regex=False)
-        )
+        df["amount"] = pd.to_numeric(df["amount"].str.replace("$", "", regex=False).str.replace(",", "", regex=False))
     return df
 
 
-def earnings_and_expenses(
-    df: pd.DataFrame, client_id: int, start_date: str, end_date: str
-) -> pd.DataFrame:
+def earnings_and_expenses(df: pd.DataFrame, client_id: int, start_date: str, end_date: str) -> pd.DataFrame:
     """Calculate total earnings and expenses for a client within a date range.
 
     Parameters
@@ -50,7 +46,8 @@ def earnings_and_expenses(
 
     con = duckdb.connect()
     con.register("txn", df)
-    result = con.execute("""
+    result = con.execute(
+        """
         SELECT
             ROUND(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 2) AS "Earnings",
             ROUND(SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END), 2) AS "Expenses"
@@ -58,7 +55,9 @@ def earnings_and_expenses(
         WHERE client_id = $1
           AND date >= $2::TIMESTAMP
           AND date <= $3::TIMESTAMP
-    """, [client_id, start_date, end_date]).df()
+    """,
+        [client_id, start_date, end_date],
+    ).df()
     con.close()
 
     os.makedirs(FIGURES_DIR, exist_ok=True)
@@ -75,9 +74,7 @@ def earnings_and_expenses(
     return result
 
 
-def expenses_summary(
-    df: pd.DataFrame, client_id: int, start_date: str, end_date: str
-) -> pd.DataFrame:
+def expenses_summary(df: pd.DataFrame, client_id: int, start_date: str, end_date: str) -> pd.DataFrame:
     """Summarize expenses by merchant category for a client within a date range.
 
     Parameters
@@ -111,7 +108,8 @@ def expenses_summary(
     con = duckdb.connect()
     con.register("txn", df)
     con.register("mcc_lookup", mcc_df)
-    result = con.execute("""
+    result = con.execute(
+        """
         SELECT
             m.category_name AS "Expenses Type",
             ROUND(SUM(ABS(d.amount)), 2) AS "Total Amount",
@@ -127,7 +125,9 @@ def expenses_summary(
           AND d.amount < 0
         GROUP BY m.category_name
         ORDER BY m.category_name
-    """, [client_id, start_date, end_date]).df()
+    """,
+        [client_id, start_date, end_date],
+    ).df()
     con.close()
 
     os.makedirs(FIGURES_DIR, exist_ok=True)
@@ -143,9 +143,7 @@ def expenses_summary(
     return result
 
 
-def cash_flow_summary(
-    df: pd.DataFrame, client_id: int, start_date: str, end_date: str
-) -> pd.DataFrame:
+def cash_flow_summary(df: pd.DataFrame, client_id: int, start_date: str, end_date: str) -> pd.DataFrame:
     """Calculate cash flow summary grouped by week or month.
 
     Groups by week (Sunday-ending) if period <= 60 days, by month otherwise.
@@ -169,25 +167,29 @@ def cash_flow_summary(
     """
     df = _parse_amount_col(df)
 
-    filtered = df[
-        (df["client_id"] == client_id)
-        & (df["date"] >= start_date)
-        & (df["date"] <= end_date)
-    ].copy()
+    filtered = df[(df["client_id"] == client_id) & (df["date"] >= start_date) & (df["date"] <= end_date)].copy()
 
     period_days = (pd.Timestamp(end_date) - pd.Timestamp(start_date)).days
 
     if period_days > PERIOD_THRESHOLD_DAYS:
-        grouped = filtered.groupby(pd.Grouper(key="date", freq="ME")).agg(
-            Inflows=("amount", lambda x: round(x[x > 0].sum(), 2)),
-            Outflows=("amount", lambda x: round(abs(x[x < 0].sum()), 2)),
-        ).reset_index()
+        grouped = (
+            filtered.groupby(pd.Grouper(key="date", freq="ME"))
+            .agg(
+                Inflows=("amount", lambda x: round(x[x > 0].sum(), 2)),
+                Outflows=("amount", lambda x: round(abs(x[x < 0].sum()), 2)),
+            )
+            .reset_index()
+        )
         grouped["Date"] = grouped["date"].dt.strftime("%Y-%m")
     else:
-        grouped = filtered.groupby(pd.Grouper(key="date", freq="W")).agg(
-            Inflows=("amount", lambda x: round(x[x > 0].sum(), 2)),
-            Outflows=("amount", lambda x: round(abs(x[x < 0].sum()), 2)),
-        ).reset_index()
+        grouped = (
+            filtered.groupby(pd.Grouper(key="date", freq="W"))
+            .agg(
+                Inflows=("amount", lambda x: round(x[x > 0].sum(), 2)),
+                Outflows=("amount", lambda x: round(abs(x[x < 0].sum()), 2)),
+            )
+            .reset_index()
+        )
         grouped["Date"] = grouped["date"].dt.strftime("%Y-%m-%d")
 
     grouped["Net Cash Flow"] = round(grouped["Inflows"] - grouped["Outflows"], 2)

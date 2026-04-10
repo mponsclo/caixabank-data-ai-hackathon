@@ -10,11 +10,11 @@ Architecture:
 - fpdf2 assembles the PDF report
 """
 
-from langchain_ollama import ChatOllama
 import pandas as pd
+from langchain_ollama import ChatOllama
 
 from agent.tools import extract_dates, generate_pdf
-from data.data_functions import earnings_and_expenses, expenses_summary, cash_flow_summary
+from data.data_functions import cash_flow_summary, earnings_and_expenses, expenses_summary
 
 
 def run_agent(df: pd.DataFrame, client_id: int, input: str) -> dict:
