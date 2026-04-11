@@ -15,19 +15,40 @@ FIGURES_DIR = "reports/figures"
 
 PERIOD_THRESHOLD_DAYS = 60
 
-# Chart style constants
-COLOR_EARNINGS = "#27ae60"
-COLOR_EXPENSES = "#e74c3c"
-COLOR_INFLOW = "#27ae60"
-COLOR_OUTFLOW = "#e74c3c"
-COLOR_NET = "#2c3e50"
-COLOR_CATEGORY = "#2e86c1"
+# Chart style constants — matches report CSS palette
+COLOR_EARNINGS = "#1B8C5A"
+COLOR_EXPENSES = "#D64045"
+COLOR_INFLOW = "#1B8C5A"
+COLOR_OUTFLOW = "#D64045"
+COLOR_NET = "#003547"
+COLOR_CATEGORY = "#007A8C"
+
+# Professional chart styling
+plt.rcParams.update({
+    "font.family": "sans-serif",
+    "font.sans-serif": ["Inter", "Helvetica Neue", "Arial", "sans-serif"],
+    "axes.facecolor": "#FAFBFC",
+    "figure.facecolor": "#FFFFFF",
+    "axes.edgecolor": "#E5E7EB",
+    "axes.labelcolor": "#1A1A2E",
+    "text.color": "#1A1A2E",
+    "xtick.color": "#6B7280",
+    "ytick.color": "#6B7280",
+    "axes.grid": True,
+    "grid.alpha": 0.3,
+    "grid.color": "#E5E7EB",
+    "grid.linestyle": "--",
+    "axes.spines.top": False,
+    "axes.spines.right": False,
+})
 
 
 def _clean_axes(ax):
     """Remove top and right spines for cleaner charts."""
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
+    ax.spines["left"].set_color("#E5E7EB")
+    ax.spines["bottom"].set_color("#E5E7EB")
 
 
 def _dollar_label(value):
@@ -85,13 +106,15 @@ def earnings_and_expenses(df: pd.DataFrame, client_id: int, start_date: str, end
     expenses_val = abs(result["Expenses"].iloc[0])
 
     os.makedirs(FIGURES_DIR, exist_ok=True)
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=(8, 4.5))
     bars = ax.bar(
         ["Earnings", "Expenses"],
         [earnings_val, expenses_val],
         color=[COLOR_EARNINGS, COLOR_EXPENSES],
-        width=0.5,
+        width=0.45,
         edgecolor="white",
+        linewidth=1.5,
+        zorder=3,
     )
     for bar, val in zip(bars, [earnings_val, expenses_val]):
         ax.text(
@@ -100,15 +123,16 @@ def earnings_and_expenses(df: pd.DataFrame, client_id: int, start_date: str, end
             _dollar_label(val),
             ha="center",
             va="bottom",
-            fontsize=12,
+            fontsize=11,
             fontweight="bold",
+            color="#1A1A2E",
         )
-    ax.set_ylabel("Amount ($)")
-    ax.set_title("Earnings vs Expenses", fontsize=14, fontweight="bold")
+    ax.set_ylabel("Amount ($)", fontsize=10, fontweight="500")
     _clean_axes(ax)
     ax.yaxis.set_major_formatter(mtick.FuncFormatter(lambda x, _: f"${x:,.0f}"))
+    ax.set_axisbelow(True)
     plt.tight_layout()
-    fig.savefig(os.path.join(FIGURES_DIR, "earnings_and_expenses.png"), dpi=150, bbox_inches="tight")
+    fig.savefig(os.path.join(FIGURES_DIR, "earnings_and_expenses.png"), dpi=200, bbox_inches="tight")
     plt.close(fig)
 
     return result
@@ -174,8 +198,11 @@ def expenses_summary(df: pd.DataFrame, client_id: int, start_date: str, end_date
     plot_df = result.sort_values("Total Amount", ascending=True)
 
     os.makedirs(FIGURES_DIR, exist_ok=True)
-    fig, ax = plt.subplots(figsize=(10, max(4, len(plot_df) * 0.6)))
-    bars = ax.barh(plot_df["Expenses Type"], plot_df["Total Amount"], color=COLOR_CATEGORY, edgecolor="white")
+    fig, ax = plt.subplots(figsize=(10, max(4, len(plot_df) * 0.55)))
+    bars = ax.barh(
+        plot_df["Expenses Type"], plot_df["Total Amount"],
+        color=COLOR_CATEGORY, edgecolor="white", linewidth=1.2, zorder=3,
+    )
     for bar, val in zip(bars, plot_df["Total Amount"]):
         ax.text(
             bar.get_width() + max(plot_df["Total Amount"]) * 0.02,
@@ -183,14 +210,15 @@ def expenses_summary(df: pd.DataFrame, client_id: int, start_date: str, end_date
             _dollar_label(val),
             ha="left",
             va="center",
-            fontsize=10,
+            fontsize=9,
+            color="#1A1A2E",
         )
-    ax.set_xlabel("Total Amount ($)")
-    ax.set_title("Expenses by Category", fontsize=14, fontweight="bold")
+    ax.set_xlabel("Total Amount ($)", fontsize=10, fontweight="500")
     _clean_axes(ax)
     ax.xaxis.set_major_formatter(mtick.FuncFormatter(lambda x, _: f"${x:,.0f}"))
+    ax.set_axisbelow(True)
     plt.tight_layout()
-    fig.savefig(os.path.join(FIGURES_DIR, "expenses_summary.png"), dpi=150, bbox_inches="tight")
+    fig.savefig(os.path.join(FIGURES_DIR, "expenses_summary.png"), dpi=200, bbox_inches="tight")
     plt.close(fig)
 
     return result
@@ -253,21 +281,21 @@ def cash_flow_summary(df: pd.DataFrame, client_id: int, start_date: str, end_dat
 
     # Generate cash flow chart
     os.makedirs(FIGURES_DIR, exist_ok=True)
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, ax = plt.subplots(figsize=(10, 4.5))
     x = np.arange(len(result))
-    width = 0.35
-    ax.bar(x - width / 2, result["Inflows"], width, label="Inflows", color=COLOR_INFLOW, edgecolor="white")
-    ax.bar(x + width / 2, result["Outflows"], width, label="Outflows", color=COLOR_OUTFLOW, edgecolor="white")
-    ax.plot(x, result["Net Cash Flow"], color=COLOR_NET, marker="o", linewidth=2, label="Net Cash Flow", zorder=5)
+    width = 0.33
+    ax.bar(x - width / 2, result["Inflows"], width, label="Inflows", color=COLOR_INFLOW, edgecolor="white", linewidth=1.2, zorder=3)
+    ax.bar(x + width / 2, result["Outflows"], width, label="Outflows", color=COLOR_OUTFLOW, edgecolor="white", linewidth=1.2, zorder=3)
+    ax.plot(x, result["Net Cash Flow"], color=COLOR_NET, marker="o", linewidth=2.5, markersize=6, label="Net Cash Flow", zorder=5)
     ax.set_xticks(x)
     ax.set_xticklabels(result["Date"], rotation=45 if len(result) > 6 else 0, ha="right" if len(result) > 6 else "center")
-    ax.set_ylabel("Amount ($)")
-    ax.set_title("Cash Flow Over Time", fontsize=14, fontweight="bold")
-    ax.legend()
+    ax.set_ylabel("Amount ($)", fontsize=10, fontweight="500")
+    ax.legend(frameon=True, fancybox=True, shadow=False, framealpha=0.9, edgecolor="#E5E7EB", fontsize=9)
     _clean_axes(ax)
     ax.yaxis.set_major_formatter(mtick.FuncFormatter(lambda x, _: f"${x:,.0f}"))
+    ax.set_axisbelow(True)
     plt.tight_layout()
-    fig.savefig(os.path.join(FIGURES_DIR, "cash_flow_summary.png"), dpi=150, bbox_inches="tight")
+    fig.savefig(os.path.join(FIGURES_DIR, "cash_flow_summary.png"), dpi=200, bbox_inches="tight")
     plt.close(fig)
 
     return result

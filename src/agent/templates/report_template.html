@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="report_styles.css">
+    <style>
+        /* Inject dynamic content into running headers/footers via @page */
+        @page {
+            @top-left {
+                content: "Financial Report  |  Client {{ client_id }}";
+            }
+            @top-right {
+                content: "{{ start_date }} to {{ end_date }}";
+            }
+            @bottom-left {
+                content: "Generated on {{ generated_date }}";
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ============================================================
+     PAGE 1 — COVER
+     ============================================================ -->
+<div class="cover-page">
+    <div class="cover-label">Client Financial Analysis</div>
+    <div class="cover-accent-line"></div>
+    <div class="cover-title">Financial Report</div>
+    <div class="cover-subtitle">Client {{ client_id }}</div>
+    <div class="cover-period">{{ start_date }}  —  {{ end_date }}</div>
+    <div class="cover-footer">Confidential  |  Generated on {{ generated_date }}</div>
+</div>
+
+<!-- ============================================================
+     PAGE 2 — EXECUTIVE SUMMARY
+     ============================================================ -->
+<div class="content-page">
+    <div class="section-header">
+        <span class="section-number">Section 01</span>
+        <div class="section-title">Executive Summary</div>
+    </div>
+
+    <div class="kpi-grid">
+        <div class="kpi-card kpi-card--success">
+            <div class="kpi-label">Total Earnings</div>
+            <div class="kpi-value kpi-value--success">{{ kpi_earnings }}</div>
+            <div class="kpi-subtext">Income received</div>
+        </div>
+        <div class="kpi-card kpi-card--danger">
+            <div class="kpi-label">Total Expenses</div>
+            <div class="kpi-value kpi-value--danger">{{ kpi_expenses }}</div>
+            <div class="kpi-subtext">Amount spent</div>
+        </div>
+        <div class="kpi-card kpi-card--primary">
+            <div class="kpi-label">Net Savings</div>
+            <div class="kpi-value kpi-value--primary">{{ kpi_net }}</div>
+            <div class="kpi-subtext">Earnings minus expenses</div>
+        </div>
+        <div class="kpi-card kpi-card--dark">
+            <div class="kpi-label">Savings Rate</div>
+            <div class="kpi-value kpi-value--dark">{{ kpi_savings_rate }}</div>
+            <div class="kpi-subtext">Percentage of income saved</div>
+        </div>
+    </div>
+
+    <p class="narrative">{{ ee_narrative }}</p>
+
+    {% if n_categories > 0 %}
+    <div class="mt-6">
+        <div class="summary-subsection">Spending Distribution</div>
+        <p class="narrative mt-2">{{ es_narrative }}</p>
+    </div>
+    {% endif %}
+
+    {% if cf_narrative %}
+    <div class="mt-4">
+        <div class="summary-subsection">Cash Flow Overview</div>
+        <p class="narrative mt-2">{{ cf_narrative }}</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ============================================================
+     PAGE 3 — EARNINGS & EXPENSES
+     ============================================================ -->
+<div class="content-page">
+    <div class="section-header">
+        <span class="section-number">Section 02</span>
+        <div class="section-title">Earnings and Expenses</div>
+    </div>
+
+    <p class="narrative">{{ ee_narrative }}</p>
+
+    {% if ee_data %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th class="text-right">Earnings</th>
+                <th class="text-right">Expenses</th>
+                <th class="text-right">Net</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="text-right text-success bold">{{ ee_data.earnings }}</td>
+                <td class="text-right text-danger bold">{{ ee_data.expenses }}</td>
+                <td class="text-right bold">{{ ee_data.net }}</td>
+            </tr>
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty-state">No transaction data available for this period.</p>
+    {% endif %}
+
+    {% if ee_chart_b64 %}
+    <div class="chart-container">
+        <img src="data:image/png;base64,{{ ee_chart_b64 }}" alt="Earnings vs Expenses Chart">
+    </div>
+    {% endif %}
+</div>
+
+<!-- ============================================================
+     PAGE 4 — EXPENSES BY CATEGORY
+     ============================================================ -->
+<div class="content-page">
+    <div class="section-header">
+        <span class="section-number">Section 03</span>
+        <div class="section-title">Expenses by Category</div>
+    </div>
+
+    <p class="narrative">{{ es_narrative }}</p>
+
+    {% if es_rows %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th class="text-left">Category</th>
+                <th class="text-right">Total Amount</th>
+                <th class="text-right">Average</th>
+                <th class="text-right">Max</th>
+                <th class="text-right">Min</th>
+                <th class="text-right">Transactions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in es_rows %}
+            <tr>
+                <td class="text-left bold">{{ row.category }}</td>
+                <td class="text-right">{{ row.total }}</td>
+                <td class="text-right">{{ row.average }}</td>
+                <td class="text-right">{{ row.max }}</td>
+                <td class="text-right">{{ row.min }}</td>
+                <td class="text-right">{{ row.count }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty-state">No expense transactions found for this period.</p>
+    {% endif %}
+
+    {% if es_chart_b64 %}
+    <div class="chart-container">
+        <img src="data:image/png;base64,{{ es_chart_b64 }}" alt="Expenses by Category Chart">
+    </div>
+    {% endif %}
+</div>
+
+<!-- ============================================================
+     PAGE 5 — CASH FLOW SUMMARY
+     ============================================================ -->
+<div class="content-page">
+    <div class="section-header">
+        <span class="section-number">Section 04</span>
+        <div class="section-title">Cash Flow Summary</div>
+    </div>
+
+    <p class="narrative">{{ cf_narrative }}</p>
+
+    {% if cf_rows %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th class="text-left">Period</th>
+                <th class="text-right">Inflows</th>
+                <th class="text-right">Outflows</th>
+                <th class="text-right">Net Cash Flow</th>
+                <th class="text-right">Savings %</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in cf_rows %}
+            <tr>
+                <td class="text-left bold">{{ row.date }}</td>
+                <td class="text-right text-success">{{ row.inflows }}</td>
+                <td class="text-right text-danger">{{ row.outflows }}</td>
+                <td class="text-right bold">{{ row.net }}</td>
+                <td class="text-right">{{ row.savings_pct }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        {% if cf_totals %}
+        <tfoot>
+            <tr>
+                <td class="text-left">TOTAL</td>
+                <td class="text-right">{{ cf_totals.inflows }}</td>
+                <td class="text-right">{{ cf_totals.outflows }}</td>
+                <td class="text-right">{{ cf_totals.net }}</td>
+                <td class="text-right">{{ cf_totals.savings_pct }}</td>
+            </tr>
+        </tfoot>
+        {% endif %}
+    </table>
+    {% else %}
+    <p class="empty-state">No cash flow data available for this period.</p>
+    {% endif %}
+
+    {% if cf_chart_b64 %}
+    <div class="chart-container">
+        <img src="data:image/png;base64,{{ cf_chart_b64 }}" alt="Cash Flow Chart">
+    </div>
+    {% endif %}
+</div>
+
+</body>
+</html>

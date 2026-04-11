@@ -1,13 +1,13 @@
 """Task 5: AI Agent for generating PDF financial reports.
 
 Uses LangChain + Ollama (llama3.2:1b) to parse natural language date requests,
-then calls Task 2 data functions and generates a PDF report with fpdf2.
+then calls Task 2 data functions and generates a professional PDF report.
 
 Architecture:
 - LLM extracts dates from natural language (with regex fallback for reliability)
 - Client validation is deterministic (check DataFrame)
-- Task 2 functions generate data + charts
-- fpdf2 assembles the PDF report
+- Task 2 functions generate data + charts (matplotlib)
+- Jinja2 HTML template + WeasyPrint renders the final PDF
 """
 
 import pandas as pd

@@ -130,7 +130,9 @@ Global LightGBM with **direct multi-step forecasting** (separate model per horiz
 
 ### AI Agent (LangChain + Regex Fallback)
 
-Hybrid architecture: 3-layer LLM strategy (Vertex AI Gemini scaffold, Ollama for local dev, regex fallback as default) + deterministic pipeline for client validation, data analysis, and PDF generation. Regex fallback ensures all tests pass without LLM dependencies. [Sample report](docs/sample-agent-report.pdf).
+Hybrid architecture: 3-layer LLM strategy (Vertex AI Gemini scaffold, Ollama for local dev, regex fallback as default) + deterministic pipeline for client validation, data analysis, and professional PDF report generation. Regex fallback ensures all tests pass without LLM dependencies.
+
+The report engine uses **Jinja2 + WeasyPrint** (HTML/CSS paged media) to produce 5-page bank-quality PDFs with a gradient cover page, KPI dashboard, styled data tables, and matplotlib charts. Showcase examples in [`reports/showcase/`](reports/showcase/).
 
 ### Infrastructure (Terraform + GCP)
 
@@ -252,10 +254,13 @@ The datasets are **not included** in this repository. To reproduce the results, 
 │   ├── data/                   # Task 1 queries, Task 2 functions
 │   ├── models/                 # Task 3 fraud model, Task 4 forecast model
 │   └── agent/                  # Task 5 AI agent
+│       ├── templates/          # Jinja2 HTML + CSS for PDF reports
+│       └── fonts/              # Bundled Inter font (SIL OFL)
 ├── reports/                    # EDA notebook + model results notebook
+│   └── showcase/               # 3 example PDF reports
 ├── tests/                      # Hackathon test suite (9 tests)
 ├── docs/                       # Component guides (1-ingestion through 8-experiments)
-├── Dockerfile                  # python:3.10-slim + uvicorn
+├── Dockerfile                  # python:3.10-slim + uvicorn + WeasyPrint deps
 ├── Makefile                    # install, dbt-build, export-models, serve, lint, test
 └── pyproject.toml              # Ruff linter configuration
 ```

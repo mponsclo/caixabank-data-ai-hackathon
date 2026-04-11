@@ -90,7 +90,7 @@ The response is parsed as JSON. If the LLM returns extra text around the JSON (c
 
 ## Report Generation
 
-Once dates are extracted and the client is validated (exists in the dataset), the agent runs three analysis functions and combines their outputs into a PDF. A [sample report](sample-agent-report.pdf) is included in this directory (Client 122, April 2017).
+Once dates are extracted and the client is validated (exists in the dataset), the agent runs three analysis functions and combines their outputs into a PDF. Example reports are available in [`reports/showcase/`](../reports/showcase/).
 
 ### Data analysis functions
 
@@ -109,16 +109,28 @@ All three functions live in [`src/data/data_functions.py`](../src/data/data_func
 **`cash_flow_summary(df, client_id, start_date, end_date)`**
 - Tracks inflows vs outflows over time, grouped by week (if period ≤ 60 days) or month (if longer)
 - Computes net cash flow and savings rate as a percentage
+- Produces a bar + line chart saved to `reports/figures/cash_flow_summary.png`
 - Returns a DataFrame with columns: `Date`, `Inflows`, `Outflows`, `Net Cash Flow`, `% Savings`
-- No chart generated for this function (data only)
 
-### PDF structure
+### PDF report design
 
-The PDF is generated with [`fpdf2`](https://py-pdf.github.io/fpdf2/) and contains three sections:
+The PDF is generated with **Jinja2 + WeasyPrint** (HTML/CSS → PDF) and produces a 5-page professional report:
 
-1. **Earnings & Expenses**: summary table + bar chart
-2. **Expenses by Category**: breakdown table + category bar chart
-3. **Cash Flow Summary**: periodic inflows/outflows table
+1. **Cover page** — full-bleed teal-to-navy gradient with client ID and date range
+2. **Executive Summary** — 4 KPI cards (earnings, expenses, net savings, savings rate) + narrative paragraphs
+3. **Earnings & Expenses** — data table + bar chart
+4. **Expenses by Category** — breakdown table + horizontal bar chart
+5. **Cash Flow Summary** — periodic table with totals row + bar/line chart
+
+Design system:
+- **Typography:** Inter font (bundled .woff2 files, 4 weights)
+- **Color palette:** CaixaBank-inspired teal (`#007A8C`) and navy (`#003547`) with green/coral accents for income/expenses
+- **Running headers/footers:** client ID, date range, generation date, page numbers on all content pages
+- **CSS paged media:** `@page` rules, named pages for cover, automatic page breaks
+
+Template files: [`src/agent/templates/report_template.html`](../src/agent/templates/report_template.html) + [`report_styles.css`](../src/agent/templates/report_styles.css)
+
+Showcase reports are available in [`reports/showcase/`](../reports/showcase/).
 
 The file is saved as `reports/report_client_{id}_{start}_to_{end}.pdf`.
 
@@ -164,7 +176,9 @@ Run with `make test`. All 3 pass with the regex backend (no LLM required).
 | File | Purpose |
 |------|---------|
 | [`src/agent/agent.py`](../src/agent/agent.py) | Main orchestrator: date extraction → validation → analysis → PDF |
-| [`src/agent/tools.py`](../src/agent/tools.py) | Date extraction (LLM + regex), PDF generation |
+| [`src/agent/tools.py`](../src/agent/tools.py) | Date extraction (LLM + regex), PDF generation (Jinja2 + WeasyPrint) |
+| [`src/agent/templates/`](../src/agent/templates/) | HTML template + CSS stylesheet for the PDF report |
+| [`src/agent/fonts/`](../src/agent/fonts/) | Bundled Inter font files (.woff2, SIL Open Font License) |
 | [`src/data/data_functions.py`](../src/data/data_functions.py) | Three analysis functions (earnings, expenses, cash flow) |
 | [`app/routers/agent.py`](../app/routers/agent.py) | FastAPI endpoint with 3-layer backend selection |
 | [`tests/agent_test.py`](../tests/agent_test.py) | 3 test cases covering ordinal, ISO, and invalid client |

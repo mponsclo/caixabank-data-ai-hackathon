@@ -1,0 +1,421 @@
+/* ============================================================
+   Financial Report — Professional Banking Stylesheet
+   Stack: Jinja2 + WeasyPrint (CSS Paged Media)
+   ============================================================ */
+
+/* --- Font Faces --- */
+@font-face {
+    font-family: 'Inter';
+    src: url('../fonts/Inter-Regular.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Inter';
+    src: url('../fonts/Inter-Medium.woff2') format('woff2');
+    font-weight: 500;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Inter';
+    src: url('../fonts/Inter-SemiBold.woff2') format('woff2');
+    font-weight: 600;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Inter';
+    src: url('../fonts/Inter-Bold.woff2') format('woff2');
+    font-weight: 700;
+    font-style: normal;
+}
+
+/* --- CSS Variables --- */
+:root {
+    --primary-dark:    #003547;
+    --primary:         #007A8C;
+    --primary-light:   #E5F3F5;
+    --success:         #1B8C5A;
+    --danger:          #D64045;
+    --text-primary:    #1A1A2E;
+    --text-secondary:  #6B7280;
+    --text-muted:      #9CA3AF;
+    --surface:         #FAFBFC;
+    --table-alt-row:   #F3F4F6;
+    --border:          #E5E7EB;
+    --white:           #FFFFFF;
+}
+
+/* --- Page Rules --- */
+@page {
+    size: A4;
+    margin: 22mm 18mm 22mm 18mm;
+
+    @top-left {
+        font-family: 'Inter', sans-serif;
+        font-size: 7.5pt;
+        font-weight: 500;
+        color: #9CA3AF;
+        vertical-align: bottom;
+        padding-bottom: 4mm;
+    }
+    @top-right {
+        font-family: 'Inter', sans-serif;
+        font-size: 7.5pt;
+        font-weight: 400;
+        color: #9CA3AF;
+        vertical-align: bottom;
+        padding-bottom: 4mm;
+    }
+    @bottom-left {
+        font-family: 'Inter', sans-serif;
+        font-size: 7pt;
+        color: #9CA3AF;
+        vertical-align: top;
+        padding-top: 3mm;
+        border-top: 0.5pt solid #E5E7EB;
+    }
+    @bottom-right {
+        content: "Page " counter(page) " of " counter(pages);
+        font-family: 'Inter', sans-serif;
+        font-size: 7pt;
+        color: #9CA3AF;
+        vertical-align: top;
+        padding-top: 3mm;
+        border-top: 0.5pt solid #E5E7EB;
+    }
+}
+
+@page cover {
+    margin: 0;
+    @top-left { content: none; }
+    @top-right { content: none; }
+    @bottom-left { content: none; }
+    @bottom-right { content: none; }
+}
+
+/* --- Base Reset --- */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10pt;
+    line-height: 1.55;
+    color: var(--text-primary);
+    background: var(--white);
+}
+
+/* ============================================================
+   COVER PAGE
+   ============================================================ */
+.cover-page {
+    page: cover;
+    width: 210mm;
+    height: 297mm;
+    background: linear-gradient(160deg, #007A8C 0%, #005A6A 35%, #003547 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    color: var(--white);
+    position: relative;
+    overflow: hidden;
+}
+
+.cover-page::before {
+    content: '';
+    position: absolute;
+    top: -120mm;
+    right: -80mm;
+    width: 300mm;
+    height: 300mm;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.cover-page::after {
+    content: '';
+    position: absolute;
+    bottom: -100mm;
+    left: -60mm;
+    width: 250mm;
+    height: 250mm;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.cover-accent-line {
+    width: 60mm;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.4);
+    margin: 8mm auto;
+}
+
+.cover-label {
+    font-size: 9pt;
+    font-weight: 500;
+    letter-spacing: 3pt;
+    text-transform: uppercase;
+    opacity: 0.7;
+    margin-bottom: 6mm;
+}
+
+.cover-title {
+    font-size: 36pt;
+    font-weight: 700;
+    letter-spacing: -0.5pt;
+    line-height: 1.1;
+    margin-bottom: 3mm;
+}
+
+.cover-subtitle {
+    font-size: 14pt;
+    font-weight: 400;
+    opacity: 0.85;
+    margin-bottom: 2mm;
+}
+
+.cover-period {
+    font-size: 11pt;
+    font-weight: 400;
+    opacity: 0.65;
+}
+
+.cover-footer {
+    position: absolute;
+    bottom: 18mm;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 8pt;
+    font-weight: 400;
+    opacity: 0.45;
+}
+
+/* ============================================================
+   CONTENT PAGES
+   ============================================================ */
+.content-page {
+    page-break-before: always;
+}
+
+/* --- Section Headers --- */
+.section-header {
+    margin-bottom: 5mm;
+    padding-bottom: 3mm;
+    border-bottom: 2pt solid var(--primary);
+}
+
+.section-number {
+    font-size: 9pt;
+    font-weight: 600;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 1.5pt;
+    display: block;
+    margin-bottom: 1.5mm;
+}
+
+.section-title {
+    font-size: 18pt;
+    font-weight: 700;
+    color: var(--primary-dark);
+    line-height: 1.2;
+}
+
+/* --- Narrative Text --- */
+.narrative {
+    font-size: 10pt;
+    font-weight: 400;
+    color: var(--text-secondary);
+    line-height: 1.65;
+    margin: 4mm 0 6mm 0;
+    padding-left: 3mm;
+    border-left: 2pt solid var(--primary-light);
+}
+
+/* ============================================================
+   KPI CARDS
+   ============================================================ */
+.kpi-grid {
+    display: flex;
+    gap: 4mm;
+    margin: 6mm 0 8mm 0;
+}
+
+.kpi-card {
+    flex: 1;
+    background: var(--surface);
+    border-left: 3.5pt solid var(--primary);
+    border-radius: 2pt;
+    padding: 5mm 4mm;
+}
+
+.kpi-card--success { border-left-color: var(--success); }
+.kpi-card--danger  { border-left-color: var(--danger); }
+.kpi-card--primary { border-left-color: var(--primary); }
+.kpi-card--dark    { border-left-color: var(--primary-dark); }
+
+.kpi-label {
+    font-size: 7.5pt;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8pt;
+    margin-bottom: 1.5mm;
+}
+
+.kpi-value {
+    font-size: 20pt;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.1;
+}
+
+.kpi-value--success { color: var(--success); }
+.kpi-value--danger  { color: var(--danger); }
+.kpi-value--primary { color: var(--primary); }
+.kpi-value--dark    { color: var(--primary-dark); }
+
+.kpi-subtext {
+    font-size: 8pt;
+    font-weight: 400;
+    color: var(--text-muted);
+    margin-top: 1mm;
+}
+
+/* ============================================================
+   TABLES
+   ============================================================ */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 4mm 0 5mm 0;
+    font-size: 9pt;
+}
+
+.data-table thead th {
+    background: var(--primary-dark);
+    color: var(--white);
+    font-weight: 600;
+    font-size: 8pt;
+    text-transform: uppercase;
+    letter-spacing: 0.5pt;
+    padding: 3mm 3mm;
+    text-align: left;
+    border: none;
+}
+
+.data-table thead th:first-child {
+    border-radius: 2pt 0 0 0;
+}
+
+.data-table thead th:last-child {
+    border-radius: 0 2pt 0 0;
+}
+
+.data-table thead th.text-right {
+    text-align: right;
+}
+
+.data-table tbody td {
+    padding: 2.5mm 3mm;
+    border-bottom: 0.5pt solid var(--border);
+    font-weight: 400;
+    vertical-align: middle;
+}
+
+.data-table tbody tr:nth-child(even) {
+    background: var(--table-alt-row);
+}
+
+.data-table tbody tr:hover {
+    background: var(--primary-light);
+}
+
+.data-table tbody td.text-right {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.data-table tbody td.text-left {
+    text-align: left;
+}
+
+.data-table tbody td.bold {
+    font-weight: 600;
+}
+
+/* Totals Row */
+.data-table tfoot td {
+    background: var(--primary-dark);
+    color: var(--white);
+    font-weight: 700;
+    font-size: 9pt;
+    padding: 3mm 3mm;
+    border: none;
+}
+
+.data-table tfoot td:first-child {
+    border-radius: 0 0 0 2pt;
+}
+
+.data-table tfoot td:last-child {
+    border-radius: 0 0 2pt 0;
+}
+
+.data-table tfoot td.text-right {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   CHARTS
+   ============================================================ */
+.chart-container {
+    margin: 5mm 0;
+    text-align: center;
+}
+
+.chart-container img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 3pt;
+}
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+.text-right { text-align: right; }
+.text-left  { text-align: left; }
+.text-center { text-align: center; }
+.mt-2 { margin-top: 2mm; }
+.mt-4 { margin-top: 4mm; }
+.mt-6 { margin-top: 6mm; }
+.mb-2 { margin-bottom: 2mm; }
+.mb-4 { margin-bottom: 4mm; }
+.mb-6 { margin-bottom: 6mm; }
+
+.empty-state {
+    font-size: 10pt;
+    font-style: italic;
+    color: var(--text-muted);
+    padding: 6mm 0;
+    text-align: center;
+}
+
+/* Executive summary sub-section heading */
+.summary-subsection {
+    font-size: 11pt;
+    font-weight: 600;
+    color: var(--primary-dark);
+    margin-bottom: 3mm;
+}
+
+/* Table cell color accents */
+.text-success { color: var(--success); }
+.text-danger  { color: var(--danger); }

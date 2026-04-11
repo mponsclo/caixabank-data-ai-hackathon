@@ -104,6 +104,10 @@ terraform/bootstrap/.terraform.lock.hcl
 # Terraform temporary build artifacts (archive_file outputs)
 .terraform-tmp/
 
+# Generated reports (test runs) — keep showcase examples
+reports/*.pdf
+reports/figures/
+
 # Model artifacts — committed so Docker CI builds include them
 # Rebuild with: make export-models
 # outputs/models/  (intentionally tracked)
