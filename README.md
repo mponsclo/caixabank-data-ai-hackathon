@@ -33,7 +33,7 @@ End-to-end ML pipeline for detecting fraud in 13M credit card transactions (0.15
 | [Data Ingestion](docs/1-ingestion.md) | Cloud Functions + Pub/Sub streaming pipeline with Protobuf |
 | [Data Transformation](docs/transformation.md) | dbt + BigQuery feature engineering (60+ features in SQL) |
 | [Fraud Detection](docs/3-ml-fraud-detection.md) | LightGBM + Focal Loss model (9 experiments, AUPRC 0 &rarr; 0.61) |
-| [Expense Forecasting](docs/ml-expense-forecast.md) | Direct multi-step forecasting + ceiling analysis (R2=0.76) |
+| [Expense Forecasting](docs/4-ml-expense-forecast.md) | Direct multi-step forecasting + ceiling analysis (R2=0.76) |
 | [API Serving](docs/serving.md) | FastAPI on Cloud Run with real-time predictions |
 | [Infrastructure](docs/infrastructure.md) | Terraform, Workload Identity Federation, SOPS/KMS, CI/CD |
 
