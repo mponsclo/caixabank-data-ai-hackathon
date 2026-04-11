@@ -16,14 +16,16 @@ Environment variables:
 """
 
 import csv
-import io
 import json
+import logging
 import os
 from datetime import datetime, timedelta
 
 import functions_framework
 import transaction_pb2
 from google.cloud import pubsub_v1, storage
+
+logger = logging.getLogger(__name__)
 
 # Configuration
 PROJECT_ID = os.environ["GCP_PROJECT_ID"]
@@ -79,50 +81,58 @@ def produce(request):
     cursor_ts = _read_cursor()
     cursor_dt = datetime.strptime(cursor_ts, "%Y-%m-%d %H:%M:%S")
     chunk_end_dt = cursor_dt + timedelta(days=CHUNK_DAYS)
+    chunk_end_ts = chunk_end_dt.strftime("%Y-%m-%d %H:%M:%S")
 
     topic_path = publisher.topic_path(PROJECT_ID, TOPIC_ID)
 
-    # Stream the CSV from GCS
+    # Stream the CSV from GCS line-by-line (avoids loading 1.2GB into memory)
     bucket = storage_client.bucket(SOURCE_BUCKET)
     blob = bucket.blob(SOURCE_FILE)
-    content = blob.download_as_text()
-    reader = csv.DictReader(io.StringIO(content))
 
     count = 0
+    skipped = 0
     last_ts = cursor_ts
     futures = []
 
-    for row in reader:
-        row_ts = row["date"]
-        row_dt = datetime.strptime(row_ts, "%Y-%m-%d %H:%M:%S")
+    with blob.open("r") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            row_ts = row["date"]
 
-        # Skip rows before cursor
-        if row_dt <= cursor_dt:
-            continue
+            # Skip rows at or before cursor (CSV is ordered by timestamp)
+            if row_ts <= cursor_ts:
+                continue
 
-        # Stop at chunk boundary
-        if row_dt > chunk_end_dt:
-            break
+            # Stop at chunk boundary
+            if row_ts > chunk_end_ts:
+                break
 
-        txn = _parse_row(row)
-        data = txn.SerializeToString()
-        future = publisher.publish(topic_path, data)
-        futures.append(future)
-        last_ts = row_ts
-        count += 1
+            try:
+                txn = _parse_row(row)
+            except (ValueError, KeyError) as e:
+                logger.warning("Skipping malformed row %s: %s", row.get("id", "?"), e)
+                skipped += 1
+                continue
+
+            data = txn.SerializeToString()
+            future = publisher.publish(topic_path, data)
+            futures.append(future)
+            last_ts = row_ts
+            count += 1
 
     # Wait for all publishes to complete
     for future in futures:
         future.result()
 
-    # Update cursor if we published anything
-    if count > 0:
-        _write_cursor(last_ts)
+    # Always advance cursor to chunk_end, even if no rows were found.
+    # This prevents re-scanning the same empty window on the next run.
+    _write_cursor(chunk_end_ts if count == 0 else last_ts)
 
     result = {
         "status": "ok",
         "chunk_start": cursor_ts,
-        "chunk_end": last_ts,
+        "chunk_end": last_ts if count > 0 else chunk_end_ts,
         "messages_published": count,
+        "rows_skipped": skipped,
     }
     return (json.dumps(result), 200, {"Content-Type": "application/json"})

@@ -19,6 +19,18 @@ from cloudevents.http import CloudEvent
 from google.cloud import bigquery
 
 PROJECT_ID = os.environ["GCP_PROJECT_ID"]
+
+
+def _safe_float(value: str):
+    """Convert string to float, returning None for empty or invalid values."""
+    if not value:
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        return None
+
+
 DATASET_ID = os.environ.get("BQ_DATASET", "landing")
 TABLE_ID = os.environ.get("BQ_TABLE", "transactions_data_stream")
 
@@ -37,7 +49,7 @@ def _proto_to_bq_row(txn: transaction_pb2.Transaction) -> dict:
         "merchant_id": txn.merchant_id,
         "merchant_city": txn.merchant_city,
         "merchant_state": txn.merchant_state,
-        "zip": float(txn.zip) if txn.zip else None,
+        "zip": _safe_float(txn.zip),
         "mcc": txn.mcc,
         "errors": txn.errors,
     }
