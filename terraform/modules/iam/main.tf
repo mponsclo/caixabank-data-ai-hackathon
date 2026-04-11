@@ -16,6 +16,11 @@ data "google_service_account" "github_actions" {
   project    = var.project_id
 }
 
+data "google_service_account" "pipeline" {
+  account_id = "pipeline-sa"
+  project    = var.project_id
+}
+
 # ---------------------------------------------------------------------------
 # Cloud Run SA — runtime permissions
 # ---------------------------------------------------------------------------
@@ -59,4 +64,29 @@ resource "google_project_iam_member" "github_actions" {
   project = var.project_id
   role    = each.value
   member  = "serviceAccount:${data.google_service_account.github_actions.email}"
+}
+
+# ---------------------------------------------------------------------------
+# Pipeline SA — ingestion pipeline permissions
+# ---------------------------------------------------------------------------
+
+locals {
+  pipeline_roles = [
+    "roles/bigquery.dataEditor",    # Write to landing.transactions_data_stream
+    "roles/bigquery.jobUser",       # Run streaming insert jobs
+    "roles/pubsub.publisher",       # Publish messages to topic
+    "roles/pubsub.subscriber",      # EventArc subscription
+    "roles/run.invoker",            # Cloud Scheduler invokes producer; EventArc invokes consumer
+    "roles/eventarc.eventReceiver", # Receive EventArc triggers
+    "roles/storage.objectViewer",   # Read CSV + cursor from GCS
+    "roles/storage.objectCreator",  # Write cursor to GCS
+  ]
+}
+
+resource "google_project_iam_member" "pipeline" {
+  for_each = toset(local.pipeline_roles)
+
+  project = var.project_id
+  role    = each.value
+  member  = "serviceAccount:${data.google_service_account.pipeline.email}"
 }

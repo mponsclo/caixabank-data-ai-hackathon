@@ -43,6 +43,22 @@ module "workload_identity" {
   project_id = var.project_id
 }
 
+module "pubsub" {
+  source     = "./modules/pubsub"
+  project_id = var.project_id
+  region     = var.region
+}
+
+module "cloud_functions" {
+  source             = "./modules/cloud_functions"
+  project_id         = var.project_id
+  region             = var.region
+  pipeline_sa_email  = module.iam.pipeline_sa_email
+  pubsub_topic_name  = module.pubsub.topic_name
+  source_bucket_name = "${var.project_id}-functions-source"
+  source_data_bucket = "${var.project_id}-raw-data"
+}
+
 # ---------------------------------------------------------------------------
 # Budget Alert — protect the $300 free credit tier
 #

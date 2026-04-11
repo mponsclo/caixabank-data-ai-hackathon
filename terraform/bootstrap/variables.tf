@@ -14,7 +14,7 @@ variable "billing_account" {
 variable "project_id" {
   description = "GCP Project ID to create (must be globally unique)"
   type        = string
-  default = "mpc-caixabank-ai"
+  default     = "mpc-caixabank-ai"
 }
 
 variable "region" {

@@ -51,8 +51,8 @@ locals {
     "aiplatform.googleapis.com",           # Vertex AI scaffold (inactive by default)
     "cloudfunctions.googleapis.com",       # Cloud Functions Gen2
     "cloudscheduler.googleapis.com",       # Cloud Scheduler (cron triggers)
-    "pubsub.googleapis.com",              # Pub/Sub messaging
-    "eventarc.googleapis.com",            # EventArc (Gen2 function triggers)
+    "pubsub.googleapis.com",               # Pub/Sub messaging
+    "eventarc.googleapis.com",             # EventArc (Gen2 function triggers)
   ]
 }
 
