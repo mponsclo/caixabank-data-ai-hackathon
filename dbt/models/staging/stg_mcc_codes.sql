@@ -1,4 +1,4 @@
-select
-    CAST(mcc_code AS INT64) as mcc,
-    category_name
-from {{ ref('mcc_codes') }}
+SELECT
+    SAFE_CAST(mcc_code AS INT64) AS mcc
+    , category_name
+FROM {{ ref('mcc_codes') }}

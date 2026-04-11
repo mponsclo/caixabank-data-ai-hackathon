@@ -1,31 +1,31 @@
-with source as (
-    select *
-    from {{ source('raw', 'transactions_data') }}
+WITH source AS (
+    SELECT *
+    FROM {{ source('raw', 'transactions_data') }}
 )
 
-select
-    id as transaction_id,
-    date as transaction_date,
-    client_id,
-    card_id,
-    amount,
-    use_chip,
-    merchant_id,
-    merchant_city,
-    merchant_state,
-    CAST(zip AS STRING) as zip,
-    mcc,
-    NULLIF(TRIM(errors), '') as errors,
+SELECT
+    id AS transaction_id
+    , date AS transaction_date
+    , client_id
+    , card_id
+    , amount
+    , use_chip
+    , merchant_id
+    , merchant_city
+    , merchant_state
+    , SAFE_CAST(zip AS STRING) AS zip
+    , mcc
+    , NULLIF(TRIM(errors), '') AS errors
 
     -- error flag features (parsed from comma-separated errors field)
-    case when LOWER(COALESCE(errors, '')) like '%bad cvv%' then 1 else 0 end as has_bad_cvv,
-    case when LOWER(COALESCE(errors, '')) like '%bad expiration%' then 1 else 0 end as has_bad_expiration,
-    case when LOWER(COALESCE(errors, '')) like '%bad card number%' then 1 else 0 end as has_bad_card_number,
-    case when LOWER(COALESCE(errors, '')) like '%bad pin%' then 1 else 0 end as has_bad_pin,
-    case when LOWER(COALESCE(errors, '')) like '%insufficient balance%' then 1 else 0 end as has_insufficient_balance,
-    case when LOWER(COALESCE(errors, '')) like '%technical glitch%' then 1 else 0 end as has_technical_glitch,
-    case when NULLIF(TRIM(errors), '') is not null then 1 else 0 end as has_any_error,
+    , IF(LOWER(COALESCE(errors, '')) LIKE '%bad cvv%', 1, 0) AS has_bad_cvv
+    , IF(LOWER(COALESCE(errors, '')) LIKE '%bad expiration%', 1, 0) AS has_bad_expiration
+    , IF(LOWER(COALESCE(errors, '')) LIKE '%bad card number%', 1, 0) AS has_bad_card_number
+    , IF(LOWER(COALESCE(errors, '')) LIKE '%bad pin%', 1, 0) AS has_bad_pin
+    , IF(LOWER(COALESCE(errors, '')) LIKE '%insufficient balance%', 1, 0) AS has_insufficient_balance
+    , IF(LOWER(COALESCE(errors, '')) LIKE '%technical glitch%', 1, 0) AS has_technical_glitch
+    , IF(NULLIF(TRIM(errors), '') IS NOT NULL, 1, 0) AS has_any_error
 
     -- online flag (strongest single signal: 28x fraud rate vs swipe)
-    case when use_chip = 'Online Transaction' then 1 else 0 end as is_online
-from source
+    , IF(use_chip = 'Online Transaction', 1, 0) AS is_online
+FROM source
