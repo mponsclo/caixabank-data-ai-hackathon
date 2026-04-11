@@ -40,7 +40,7 @@ Why LightGBM for this problem:
 
 ## The Experiment Journey
 
-9 experiments, from underfitting to production-grade. Full details in [`experiments.md`](../experiments.md).
+9 experiments, from underfitting to production-grade. Full details in [`experiments.md`](8-experiments.md).
 
 | Exp | Change | AUPRC | Key Insight |
 |-----|--------|-------|-------------|
@@ -213,5 +213,5 @@ graph LR
 | [`src/models/train_model.py`](../src/models/train_model.py) | Training pipeline: load, encode, split, train, evaluate |
 | [`scripts/export_models.py`](../scripts/export_models.py) | Retrain on full data, serialize model + encodings |
 | [`app/routers/fraud.py`](../app/routers/fraud.py) | Serving: build feature vector, apply TE, predict, sigmoid |
-| [`experiments.md`](../experiments.md) | Full experiment log (9 experiments, ablation studies) |
+| [`experiments.md`](8-experiments.md) | Full experiment log (9 experiments, ablation studies) |
 | [`dbt/models/marts/mart_fraud_features.sql`](../dbt/models/marts/mart_fraud_features.sql) | 60+ feature SQL |

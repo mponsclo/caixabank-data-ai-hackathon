@@ -167,6 +167,6 @@ This pipeline works well at 13M rows, but it would need significant redesign at 
 
 ## Known Limitations
 
-1. **`is_out_of_home_state` has mild leakage**: the client home state is computed from ALL transactions including future ones. Kept for consistency across experiments (documented in [experiments.md](../experiments.md)).
+1. **`is_out_of_home_state` has mild leakage**: the client home state is computed from ALL transactions including future ones. Kept for consistency across experiments (documented in [experiments.md](8-experiments.md)).
 
 2. **Seeds instead of landing tables**: users, cards, and MCC codes are loaded as dbt seeds rather than from the ingestion pipeline's landing tables. In production, these would come from the same Pub/Sub → BigQuery path described in the [ingestion guide](1-ingestion.md).

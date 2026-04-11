@@ -37,6 +37,7 @@ End-to-end ML pipeline for detecting fraud in 13M credit card transactions (0.15
 | [API Serving](docs/5-serving.md) | FastAPI on Cloud Run with real-time predictions |
 | [AI Agent](docs/6-agent.md) | Natural language report generation with 3-layer LLM fallback |
 | [Infrastructure](docs/7-infrastructure.md) | Terraform, Workload Identity Federation, SOPS/KMS, CI/CD |
+| [Experiments Log](docs/8-experiments.md) | Raw journal: 9 fraud + 2 forecast experiments with ablation studies |
 
 ---
 
@@ -104,7 +105,7 @@ Instead of ad-hoc pandas preprocessing, the data layer uses a **dbt pipeline** w
 
 ### Fraud Detection (LightGBM + Focal Loss)
 
-**9 experiments** documented in [experiments.md](experiments.md), from a naive baseline (AUPRC=0) to the final model:
+**9 experiments** documented in [experiments.md](docs/8-experiments.md), from a naive baseline (AUPRC=0) to the final model:
 
 | Technique | Impact |
 |-----------|--------|
@@ -261,7 +262,7 @@ The datasets are **not included** in this repository. To reproduce the results, 
 │   ├── models/                 # Task 3 fraud model, Task 4 forecast model
 │   └── agent/                  # Task 5 AI agent
 ├── tests/                      # Hackathon test suite (9 tests)
-├── experiments.md              # Full experiment log (11 experiments, ablation studies)
+├── docs/                       # Component guides (1-ingestion through 8-experiments)
 ├── Dockerfile                  # python:3.10-slim + uvicorn
 ├── Makefile                    # install, dbt-build, export-models, serve, lint, test
 └── pyproject.toml              # Ruff linter configuration

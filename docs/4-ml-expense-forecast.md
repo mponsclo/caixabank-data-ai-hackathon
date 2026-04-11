@@ -165,5 +165,5 @@ graph LR
 | [`src/models/predict_model.py`](../src/models/predict_model.py) | Feature engineering + walk-forward validation |
 | [`scripts/export_models.py`](../scripts/export_models.py) | Train on full data, export `forecast_h{1,2,3}.pkl` |
 | [`app/routers/forecast.py`](../app/routers/forecast.py) | Serving: client feature lookup, 3-horizon prediction |
-| [`experiments.md`](../experiments.md) | Full experiment log (2 forecasting experiments) |
+| [`experiments.md`](8-experiments.md) | Full experiment log (2 forecasting experiments) |
 | [`dbt/models/marts/mart_client_monthly_expenses.sql`](../dbt/models/marts/mart_client_monthly_expenses.sql) | Monthly aggregation SQL |
