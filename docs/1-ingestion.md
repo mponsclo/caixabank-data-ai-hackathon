@@ -4,23 +4,28 @@ Cloud Scheduler → Producer Cloud Function → Pub/Sub (Protobuf) → Consumer 
 
 ## Why This Layer Exists
 
-The rest of this project loads data into BigQuery via a one-time `bq load` from a local CSV. That works, but it's not how data moves in production. In a real banking system, transactions arrive continuously -- from payment processors, ATM networks, mobile apps -- and they need to land in the warehouse reliably, in near real-time, without someone running a shell script.
+The rest of this project loads data into BigQuery via a one-time `bq load` from a local CSV. That works, but it's not how data moves in production. In a real banking system, transactions arrive continuously, from payment processors, ATM networks, mobile apps, and they need to land in the warehouse reliably, in near real-time, without someone running a shell script.
 
 This ingestion pipeline exists to illustrate that flow. It takes the same 1.2GB CSV that was previously bulk-loaded and replays it through a proper event-driven architecture: a scheduled producer reads chunks from GCS, publishes each transaction as a structured message to Pub/Sub, and a consumer streams them into BigQuery. The data is the same; the path it takes is what matters.
 
-The goal isn't to replace the batch load -- it's to show how you'd build the pipeline if transactions were arriving continuously. Everything is deployed with Terraform, runs on GCP's Always Free tier, and can be paused or resumed with a single command.
+The goal isn't to replace the batch load. It's to show how you'd build the pipeline if transactions were arriving continuously. Everything is deployed with Terraform, runs on GCP's Always Free tier, and can be paused or resumed with a single command.
 
 ## Architecture
 
 ```mermaid
 graph LR
-  Scheduler["Cloud Scheduler<br/><i>daily cron, 09:00 UTC</i>"] -->|HTTP POST<br/>OIDC auth| Producer["Producer CF<br/>1Gi / 1 CPU"]
-  GCS_CSV["GCS<br/>transactions_data.csv<br/><i>1.2GB</i>"] -->|streaming read| Producer
-  GCS_Cursor["GCS<br/>cursor.json"] <-->|read/write| Producer
-  Producer -->|Protobuf<br/>serialize| PubSub["Pub/Sub<br/>transactions-ingestion"]
-  PubSub -->|EventArc| Consumer["Consumer CF<br/>256MB"]
-  PubSub -.->|failed msgs| DLQ["DLQ Topic<br/><i>7-day retention</i>"]
-  Consumer -->|streaming insert| BQ["BigQuery<br/>landing.transactions_data_stream"]
+  Scheduler["Cloud Scheduler<br/><i>daily cron, 09:00 UTC</i>"]:::infra -->|HTTP POST<br/>OIDC auth| Producer["Producer CF<br/>1Gi / 1 CPU"]:::compute
+  GCS_CSV["GCS<br/>transactions_data.csv<br/><i>1.2GB</i>"]:::storage -->|streaming read| Producer
+  GCS_Cursor["GCS<br/>cursor.json"]:::storage <-->|read/write| Producer
+  Producer -->|Protobuf<br/>serialize| PubSub["Pub/Sub<br/>transactions-ingestion"]:::storage
+  PubSub -->|EventArc| Consumer["Consumer CF<br/>256MB"]:::compute
+  PubSub -.->|failed msgs| DLQ["DLQ Topic<br/><i>7-day retention</i>"]:::error
+  Consumer -->|streaming insert| BQ["BigQuery<br/>landing.transactions_data_stream"]:::storage
+
+  classDef storage fill:#d6eaf8,stroke:#2e86c1,color:#1a1a1a
+  classDef compute fill:#d5f5e3,stroke:#1e8449,color:#1a1a1a
+  classDef infra fill:#e8daef,stroke:#7d3c98,color:#1a1a1a
+  classDef error fill:#fadbd8,stroke:#cb4335,color:#1a1a1a
 ```
 
 The pipeline processes the CSV in time-ordered 30-day chunks. Each invocation publishes one month of transactions (~100K rows) as Protobuf messages to Pub/Sub. A consumer function picks up each message and streams it into BigQuery.
@@ -59,9 +64,36 @@ Why not just JSON? JSON would work fine here. But Protobuf gives you three thing
 
 Fields intentionally preserve the raw CSV format. Parsing (e.g., `"$-77.00"` to float) is handled downstream by dbt's staging layer, keeping the ingestion pipeline format-agnostic.
 
+### The `proto/` folder
+
+The [`proto/`](../proto/) directory contains three files:
+
+**`transaction.proto`** is the schema definition. It declares a `Transaction` message with 12 typed fields that mirror the raw CSV columns: integer fields for IDs (`id`, `client_id`, `card_id`, `merchant_id`, `mcc`) and string fields for everything else (`date`, `amount`, `use_chip`, `merchant_city`, `merchant_state`, `zip`, `errors`). Each field has a unique number (1 through 12) that Protobuf uses internally to identify it in the binary encoding. These numbers are the reason Protobuf is backwards-compatible: if you add field 13 tomorrow, consumers that only know about fields 1-12 will simply ignore it.
+
+**`generate.sh`** is the compiler script. It runs `protoc` (the Protobuf compiler, installed via `pip install grpcio-tools`) to read `transaction.proto` and generate Python code. After compiling, it copies the output to both `functions/producer/` and `functions/consumer/` so each Cloud Function has its own copy. You run it with `make proto-compile` or `./proto/generate.sh`.
+
+**`transaction_pb2.py`** is the generated Python module. You never edit this file by hand. It contains a binary-encoded version of the schema (the long `b'\n\x11...'` string) and registers the `Transaction` class with the Protobuf runtime. Once imported, you can do things like:
+
+```python
+import transaction_pb2
+
+# Serialize
+txn = transaction_pb2.Transaction()
+txn.id = 7475327
+txn.amount = "$-77.00"
+binary_data = txn.SerializeToString()
+
+# Deserialize
+txn2 = transaction_pb2.Transaction()
+txn2.ParseFromString(binary_data)
+print(txn2.amount)  # "$-77.00"
+```
+
+The `_pb2` suffix is a Protobuf convention (short for "protocol buffer 2", referring to the Python code generator version, not the proto syntax version). Both the producer and consumer import this module to share the same message definition.
+
 ### EventArc
 
-EventArc is GCP's eventing layer -- it connects event sources (like a Pub/Sub topic) to event handlers (like a Cloud Function). Think of it as the glue between "a message arrived" and "run this code."
+EventArc is GCP's eventing layer. It connects event sources (like a Pub/Sub topic) to event handlers (like a Cloud Function). Think of it as the glue between "a message arrived" and "run this code."
 
 In this pipeline, EventArc does the following:
 
@@ -70,7 +102,7 @@ In this pipeline, EventArc does the following:
 3. EventArc delivers the CloudEvent to the consumer Cloud Function via HTTP
 4. The consumer extracts the original Pub/Sub message data from the CloudEvent, base64-decodes it, and deserializes the Protobuf
 
-We use EventArc instead of a plain Pub/Sub pull subscription because Gen2 Cloud Functions are built on Cloud Run under the hood. EventArc is the recommended way to connect Pub/Sub to Gen2 functions -- it handles the subscription creation, authentication, and retry logic automatically.
+We use EventArc instead of a plain Pub/Sub pull subscription because Gen2 Cloud Functions are built on Cloud Run under the hood. EventArc is the recommended way to connect Pub/Sub to Gen2 functions, as it handles the subscription creation, authentication, and retry logic automatically.
 
 The retry policy is set to `RETRY_POLICY_RETRY`, meaning failed messages are redelivered until they succeed or exhaust the retry window. Messages that completely fail end up in the Dead Letter Queue.
 
@@ -78,13 +110,13 @@ The retry policy is set to `RETRY_POLICY_RETRY`, meaning failed messages are red
 
 ### Why time-based chunking
 
-The CSV has 13.3M rows spanning 3,590 days (Jan 2010 -- Oct 2019). Loading everything at once would:
+The CSV has 13.3M rows spanning 3,590 days (Jan 2010 to Oct 2019). Loading everything at once would:
 
 1. Exceed Cloud Function memory (even at 1Gi, the full CSV is 1.2GB)
 2. Publish 13M Pub/Sub messages in one burst, overwhelming the consumer
 3. Take longer than the 5-minute Cloud Function timeout
 
-Instead, each invocation processes a **30-day window** (~100K rows). The cursor advances after each successful batch, so the next invocation picks up where it left off. At one invocation per day, the full dataset ingests in ~120 days -- but the schedule can be accelerated for faster replay.
+Instead, each invocation processes a **30-day window** (~100K rows). The cursor advances after each successful batch, so the next invocation picks up where it left off. At one invocation per day, the full dataset ingests in ~120 days, but the schedule can be accelerated for faster replay.
 
 ### Cursor tracking in GCS
 
@@ -95,15 +127,15 @@ State is tracked via a simple JSON file in GCS:
 ```
 
 Why GCS instead of a database or Firestore:
-- **No extra service** -- reuses the existing GCS bucket (`mpc-caixabank-ai-raw-data`)
-- **Atomic reads/writes** -- a single JSON object, no concurrency issues with max_instance_count=1
-- **Inspectable** -- `gsutil cat gs://bucket/pipeline/cursor.json` shows exactly where ingestion stopped
+- **No extra service**: reuses the existing GCS bucket
+- **Atomic reads/writes**: a single JSON object, no concurrency issues with max_instance_count=1
+- **Inspectable**: `gsutil cat gs://<your-bucket>/pipeline/cursor.json` shows exactly where ingestion stopped
 
 One subtlety: the cursor always advances to `chunk_end` even if zero rows are found in that time window. Without this, an empty date range would cause the producer to re-scan the same window forever.
 
 ### Dead Letter Queue
 
-The DLQ topic (`transactions-ingestion-dlq`) catches messages that exhaust EventArc's retry policy. In practice, failures are rare -- the consumer's only operation is a BigQuery streaming insert -- but the DLQ is a standard production pattern:
+The DLQ topic (`transactions-ingestion-dlq`) catches messages that exhaust EventArc's retry policy. In practice, failures are rare (the consumer's only operation is a BigQuery streaming insert), but the DLQ is a standard production pattern:
 
 - Main topic: **no retention** (messages consumed immediately)
 - DLQ topic: **7-day retention** (enough time to investigate and replay failed messages)
@@ -116,7 +148,7 @@ In a real system, you'd have monitoring on the DLQ and an alert that fires when 
 
 The producer is an HTTP-triggered Cloud Function called by Cloud Scheduler. Its flow:
 
-1. **Read cursor** from GCS -- get the last processed timestamp
+1. **Read cursor** from GCS to get the last processed timestamp
 2. **Stream the CSV** from GCS line-by-line using `blob.open("r")` (never loads the full 1.2GB into memory)
 3. **Skip rows** at or before the cursor timestamp (string comparison works because timestamps are ISO-formatted)
 4. **Stop** when rows exceed `cursor + CHUNK_DAYS`
@@ -127,7 +159,7 @@ The producer is an HTTP-triggered Cloud Function called by Cloud Scheduler. Its 
 
 A few things worth noting:
 
-- **Streaming reads**: The first version used `blob.download_as_text()`, which loaded the entire 1.2GB CSV into memory. The function had 512MB. It crashed immediately. Switching to `blob.open("r")` fixed it -- Python reads line by line from a GCS stream, keeping memory roughly constant regardless of file size.
+- **Streaming reads**: The first version used `blob.download_as_text()`, which loaded the entire 1.2GB CSV into memory. The function had 512MB. It crashed immediately. Switching to `blob.open("r")` fixed it. Python reads line by line from a GCS stream, keeping memory roughly constant regardless of file size.
 - **Error handling**: Malformed rows are logged and skipped, not crashed on. One bad row doesn't lose the entire batch of 100K messages.
 - **String timestamp comparison**: Since the CSV is ordered by timestamp and the format is ISO (`YYYY-MM-DD HH:MM:SS`), string comparison preserves chronological order. This avoids parsing 13M timestamps into datetime objects just to skip past the cursor.
 
@@ -140,7 +172,7 @@ The consumer is simpler. It's triggered by EventArc on each Pub/Sub message:
 3. **Convert** to a BigQuery row dict (handling type conversions like `zip` string → float)
 4. **Streaming insert** to `landing.transactions_data_stream`
 
-The `_safe_float()` helper handles the zip field gracefully -- empty strings become `None`, invalid values don't crash the function. This matters because online transactions have no zip code.
+The `_safe_float()` helper handles the zip field gracefully: empty strings become `None`, invalid values don't crash the function. This matters because online transactions have no zip code.
 
 ## Terraform Deployment
 
@@ -148,15 +180,15 @@ The `_safe_float()` helper handles the zip field gracefully -- empty strings bec
 
 Two Terraform modules manage the pipeline:
 
-**[`terraform/modules/pubsub/`](../terraform/modules/pubsub/)** -- Creates the ingestion topic and DLQ topic.
+**[`terraform/modules/pubsub/`](../terraform/modules/pubsub/)**: Creates the ingestion topic and DLQ topic.
 
-**[`terraform/modules/cloud_functions/`](../terraform/modules/cloud_functions/)** -- The most complex module in the project:
+**[`terraform/modules/cloud_functions/`](../terraform/modules/cloud_functions/)**: The most complex module in the project:
 
 - **Source packaging**: `archive_file` data source zips the function directories, `google_storage_bucket_object` uploads them with a content-hash in the filename. When code changes, the hash changes, and Terraform knows to redeploy.
 - **Producer function**: HTTP trigger, 1Gi memory, 1 CPU, 300s timeout
 - **Consumer function**: EventArc Pub/Sub trigger, 256MB, 60s timeout, max 3 instances
 - **Cloud Scheduler**: Daily cron at 09:00 UTC with OIDC authentication (the scheduler authenticates to the function, not just calls it blindly)
-- **Pub/Sub service agent IAM**: Grants `roles/iam.serviceAccountTokenCreator` to the Pub/Sub service agent -- required for EventArc to push messages to Gen2 functions with authentication
+- **Pub/Sub service agent IAM**: Grants `roles/iam.serviceAccountTokenCreator` to the Pub/Sub service agent, which is required for EventArc to push messages to Gen2 functions with authentication
 
 ### IAM
 
@@ -176,17 +208,19 @@ The pipeline uses a dedicated `pipeline-sa` service account with least-privilege
 
 These are the things that weren't obvious from the documentation and cost real debugging time:
 
-1. **Cloud Scheduler region**: `europe-southwest1` (Madrid) doesn't support Cloud Scheduler. The scheduler job runs in `europe-west1` while the functions stay in `europe-southwest1`. Cross-region HTTP calls work fine -- it's just a URL.
+1. **Cloud Scheduler region**: `europe-southwest1` (Madrid) doesn't support Cloud Scheduler. The scheduler job runs in `europe-west1` while the functions stay in `europe-southwest1`. Cross-region HTTP calls work fine, it's just a URL.
 
-2. **Memory sizing**: 512MB seemed enough for streaming reads, but Python's CSV reader still buffers internally. The function crashed on the first invocation. 1Gi with 1 CPU resolved it. Worth noting: Cloud Run (which Gen2 functions run on) requires at least 1 CPU for 1Gi memory -- you can't just bump memory alone.
+2. **Memory sizing**: 512MB seemed enough for streaming reads, but Python's CSV reader still buffers internally. The function crashed on the first invocation. 1Gi with 1 CPU resolved it. Worth noting: Cloud Run (which Gen2 functions run on) requires at least 1 CPU for 1Gi memory. You can't just bump memory alone.
 
 3. **Cloud Build permissions**: Gen2 Cloud Functions build their container images using Cloud Build behind the scenes. The default compute service account needs `roles/cloudbuild.builds.builder` for this to work. This isn't prominently documented and caused deployment failures until manually granted via `gcloud`.
 
-4. **Consumer backpressure**: Publishing 97K messages in a burst overwhelmed the consumer at max 3 instances. Many messages got "no available instance" errors. EventArc's retry policy handled it -- messages were redelivered until the consumer caught up -- but in production you'd increase `max_instance_count` or have the consumer batch multiple messages per invocation.
+4. **Consumer backpressure**: Publishing 97K messages in a burst overwhelmed the consumer at max 3 instances. Many messages got "no available instance" errors. EventArc's retry policy handled it (messages were redelivered until the consumer caught up), but in production you'd increase `max_instance_count` or have the consumer batch multiple messages per invocation.
 
 5. **Cursor overwrite permissions**: `storage.objectCreator` lets you create new objects but not overwrite existing ones. Overwriting requires `storage.objects.delete` (to delete the old version first). We ended up using `storage.objectAdmin` which covers both.
 
 ## Running Manually
+
+> **Prerequisites:** You need a GCP account with a project and billing enabled (the Always Free tier is sufficient). You also need `gcloud` CLI installed and authenticated (`gcloud auth login`). Replace `<your-project-id>` and `<your-bucket>` with your own values in the commands below.
 
 ```bash
 # Compile Protobuf schema
@@ -196,13 +230,17 @@ make proto-compile
 make trigger-ingestion
 
 # Check cursor state
-gsutil cat gs://mpc-caixabank-ai-raw-data/pipeline/cursor.json
+gsutil cat gs://<your-bucket>/pipeline/cursor.json
 
 # Check ingested rows
-bq query --use_legacy_sql=false \
+bq query --use_legacy_sql=false --project_id=<your-project-id> \
   "SELECT COUNT(*) FROM landing.transactions_data_stream"
 
 # Pause/resume scheduler
-gcloud scheduler jobs pause daily-transaction-ingestion --location=europe-west1
-gcloud scheduler jobs resume daily-transaction-ingestion --location=europe-west1
+gcloud scheduler jobs pause daily-transaction-ingestion \
+  --location=europe-west1 --project=<your-project-id>
+gcloud scheduler jobs resume daily-transaction-ingestion \
+  --location=europe-west1 --project=<your-project-id>
 ```
+
+See the [Infrastructure guide](7-infrastructure.md) for full setup instructions, including Terraform bootstrap and service account creation.

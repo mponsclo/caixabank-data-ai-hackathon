@@ -36,7 +36,7 @@ End-to-end ML pipeline for detecting fraud in 13M credit card transactions (0.15
 | [Expense Forecasting](docs/4-ml-expense-forecast.md) | Direct multi-step forecasting + ceiling analysis (R2=0.76) |
 | [API Serving](docs/5-serving.md) | FastAPI on Cloud Run with real-time predictions |
 | [AI Agent](docs/6-agent.md) | Natural language report generation with 3-layer LLM fallback |
-| [Infrastructure](docs/infrastructure.md) | Terraform, Workload Identity Federation, SOPS/KMS, CI/CD |
+| [Infrastructure](docs/7-infrastructure.md) | Terraform, Workload Identity Federation, SOPS/KMS, CI/CD |
 
 ---
 

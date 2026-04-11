@@ -135,7 +135,7 @@ The SQL in this project follows a consistent style:
 
 ## Running dbt
 
-> **Prerequisites:** You need a GCP project with BigQuery enabled and `gcloud auth application-default login` configured. See the [Infrastructure guide](infrastructure.md) for full setup.
+> **Prerequisites:** You need a GCP project with BigQuery enabled and `gcloud auth application-default login` configured. See the [Infrastructure guide](7-infrastructure.md) for full setup.
 
 ```bash
 # Full pipeline: seed reference data + run models + run tests
