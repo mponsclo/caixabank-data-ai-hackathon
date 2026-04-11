@@ -11,4 +11,3 @@ SELECT
     , COUNT(*) AS total_transactions
 FROM {{ ref('int_transactions_enriched') }}
 GROUP BY ALL
-ORDER BY client_id, expense_month

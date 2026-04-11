@@ -106,13 +106,13 @@ base AS (
         , UNIX_SECONDS(transaction_date) AS txn_epoch
 
     FROM {{ ref('stg_transactions') }} t
-    LEFT JOIN {{ ref('stg_mcc_codes') }} m ON t.mcc = m.mcc
-    LEFT JOIN {{ ref('stg_cards') }} c
-        ON t.card_id = c.card_id
-        AND t.client_id = c.client_id
-    LEFT JOIN {{ ref('stg_users') }} u ON t.client_id = u.client_id
-    LEFT JOIN client_home_state h ON t.client_id = h.client_id
-    LEFT JOIN client_home_zip hz ON t.client_id = hz.client_id
+        LEFT JOIN {{ ref('stg_mcc_codes') }} m ON t.mcc = m.mcc
+        LEFT JOIN {{ ref('stg_cards') }} c
+            ON t.card_id = c.card_id
+            AND t.client_id = c.client_id
+        LEFT JOIN {{ ref('stg_users') }} u ON t.client_id = u.client_id
+        LEFT JOIN client_home_state h ON t.client_id = h.client_id
+        LEFT JOIN client_home_zip hz ON t.client_id = hz.client_id
 ),
 
 -- Velocity, behavioral, and spending pattern features via window functions

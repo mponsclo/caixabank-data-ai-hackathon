@@ -26,7 +26,7 @@ SELECT
     , c.card_on_dark_web
     , c.expiry_date AS card_expiry_date
 FROM {{ ref('int_transactions_enriched') }} t
-LEFT JOIN {{ ref('stg_users') }} u ON t.client_id = u.client_id
-LEFT JOIN {{ ref('stg_cards') }} c
-    ON t.card_id = c.card_id
-    AND t.client_id = c.client_id
+    LEFT JOIN {{ ref('stg_users') }} u ON t.client_id = u.client_id
+    LEFT JOIN {{ ref('stg_cards') }} c
+        ON t.card_id = c.card_id
+        AND t.client_id = c.client_id

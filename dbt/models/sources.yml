@@ -2,15 +2,13 @@ version: 2
 
 sources:
   - name: raw
-    description: Raw data loaded into BigQuery landing dataset
+    description: Raw data loaded into BigQuery landing dataset via bq load from GCS
     database: mpc-caixabank-ai
     schema: landing
     tables:
       - name: transactions_data
-        description: Credit card transactions for the 2010s decade (loaded via bq load from GCS)
-      - name: train_fraud_labels
-        description: Binary fraud labels per transaction (loaded via bq load from GCS)
-      - name: users_data
-        description: Client demographic and financial information (dbt seed)
-      - name: cards_data
-        description: Credit and debit card details per client (dbt seed)
+        description: >
+          Credit card transactions for the 2010s decade (13M rows, 1.2GB).
+          Loaded via bq load from gs://mpc-caixabank-ai-raw-data/.
+          Seeds (cards_data, users_data, mcc_codes) are loaded directly by dbt
+          and referenced via ref(), not source().

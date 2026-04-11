@@ -7,6 +7,8 @@ models:
       60+ features across 8 categories: amount, time, errors, velocity,
       behavioral, geographic, card/user, and combined risk signals.
       All features computed via SQL window functions and BigQuery-compatible patterns.
+    config:
+      tags: ["marts", "fraud", "ml"]
     columns:
       # identifiers
       - name: transaction_id
@@ -198,6 +200,8 @@ models:
       Monthly aggregated expenses and earnings per client.
       Used as input for the expense forecasting model (Task 4).
       Aggregates from int_transactions_enriched using GROUP BY ALL.
+    config:
+      tags: ["marts", "forecast", "ml"]
     columns:
       - name: client_id
         description: Client identifier

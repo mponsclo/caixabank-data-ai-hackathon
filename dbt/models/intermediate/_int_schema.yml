@@ -5,6 +5,8 @@ models:
     description: >
       Transactions joined with MCC category names. Adds merchant_category
       as a human-readable label for each transaction's MCC code.
+    config:
+      tags: ["intermediate", "transactions"]
     columns:
       - name: transaction_id
         description: Unique transaction identifier
@@ -40,6 +42,8 @@ models:
       Transactions enriched with client demographics and card attributes.
       Joins int_transactions_enriched with stg_users and stg_cards to provide
       a complete view of each transaction with its user and card context.
+    config:
+      tags: ["intermediate", "transactions"]
     columns:
       - name: transaction_id
         description: Unique transaction identifier

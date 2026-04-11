@@ -5,6 +5,8 @@ models:
     description: >
       Cleaned transaction data with parsed error flags and channel indicators.
       One row per transaction. Source: raw.transactions_data.
+    config:
+      tags: ["staging", "transactions"]
     columns:
       - name: transaction_id
         description: Unique transaction identifier (renamed from `id`)
@@ -54,6 +56,8 @@ models:
   - name: stg_users
     description: >
       Client demographic and financial data with cleaned currency fields.
+    config:
+      tags: ["staging", "users"]
       One row per client. Source: seeds/users_data.csv.
     columns:
       - name: client_id
@@ -91,6 +95,8 @@ models:
   - name: stg_cards
     description: >
       Card details with parsed expiry dates and boolean flags.
+    config:
+      tags: ["staging", "cards"]
       One row per card. Source: seeds/cards_data.csv.
     columns:
       - name: card_id
@@ -129,6 +135,8 @@ models:
   - name: stg_mcc_codes
     description: >
       Merchant Category Code reference table mapping numeric codes to category names.
+    config:
+      tags: ["staging", "reference"]
       One row per MCC. Source: seeds/mcc_codes.csv.
     columns:
       - name: mcc

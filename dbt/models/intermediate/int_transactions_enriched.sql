@@ -13,4 +13,4 @@ SELECT
     , t.errors
     , COALESCE(m.category_name, 'Unknown') AS merchant_category
 FROM {{ ref('stg_transactions') }} t
-LEFT JOIN {{ ref('stg_mcc_codes') }} m ON t.mcc = m.mcc
+    LEFT JOIN {{ ref('stg_mcc_codes') }} m ON t.mcc = m.mcc
