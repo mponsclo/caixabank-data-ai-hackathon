@@ -3,15 +3,36 @@ import os
 
 import duckdb
 import matplotlib
-import pandas as pd
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt  # noqa: E402
+import matplotlib.ticker as mtick  # noqa: E402
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
 
 MCC_CODES_PATH = os.path.join(os.path.dirname(__file__), "../../data/raw/mcc_codes.json")
 FIGURES_DIR = "reports/figures"
 
 PERIOD_THRESHOLD_DAYS = 60
+
+# Chart style constants
+COLOR_EARNINGS = "#27ae60"
+COLOR_EXPENSES = "#e74c3c"
+COLOR_INFLOW = "#27ae60"
+COLOR_OUTFLOW = "#e74c3c"
+COLOR_NET = "#2c3e50"
+COLOR_CATEGORY = "#2e86c1"
+
+
+def _clean_axes(ax):
+    """Remove top and right spines for cleaner charts."""
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+
+def _dollar_label(value):
+    """Format a number as a dollar string."""
+    return f"${value:,.2f}"
 
 
 def _parse_amount_col(df: pd.DataFrame) -> pd.DataFrame:
@@ -60,15 +81,34 @@ def earnings_and_expenses(df: pd.DataFrame, client_id: int, start_date: str, end
     ).df()
     con.close()
 
+    earnings_val = abs(result["Earnings"].iloc[0])
+    expenses_val = abs(result["Expenses"].iloc[0])
+
     os.makedirs(FIGURES_DIR, exist_ok=True)
-    fig, ax = plt.subplots()
-    ax.bar(
+    fig, ax = plt.subplots(figsize=(8, 5))
+    bars = ax.bar(
         ["Earnings", "Expenses"],
-        [abs(result["Earnings"].iloc[0]), abs(result["Expenses"].iloc[0])],
+        [earnings_val, expenses_val],
+        color=[COLOR_EARNINGS, COLOR_EXPENSES],
+        width=0.5,
+        edgecolor="white",
     )
-    ax.set_ylabel("Amount")
-    ax.set_title("Earnings and Expenses")
-    fig.savefig(os.path.join(FIGURES_DIR, "earnings_and_expenses.png"))
+    for bar, val in zip(bars, [earnings_val, expenses_val]):
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height() + max(earnings_val, expenses_val) * 0.02,
+            _dollar_label(val),
+            ha="center",
+            va="bottom",
+            fontsize=12,
+            fontweight="bold",
+        )
+    ax.set_ylabel("Amount ($)")
+    ax.set_title("Earnings vs Expenses", fontsize=14, fontweight="bold")
+    _clean_axes(ax)
+    ax.yaxis.set_major_formatter(mtick.FuncFormatter(lambda x, _: f"${x:,.0f}"))
+    plt.tight_layout()
+    fig.savefig(os.path.join(FIGURES_DIR, "earnings_and_expenses.png"), dpi=150, bbox_inches="tight")
     plt.close(fig)
 
     return result
@@ -130,14 +170,27 @@ def expenses_summary(df: pd.DataFrame, client_id: int, start_date: str, end_date
     ).df()
     con.close()
 
+    # Sort by amount for the chart (largest first)
+    plot_df = result.sort_values("Total Amount", ascending=True)
+
     os.makedirs(FIGURES_DIR, exist_ok=True)
-    fig, ax = plt.subplots(figsize=(12, 6))
-    ax.bar(result["Expenses Type"], result["Total Amount"])
-    ax.set_ylabel("Total Amount")
-    ax.set_title("Expenses Summary by Category")
-    plt.xticks(rotation=45, ha="right")
+    fig, ax = plt.subplots(figsize=(10, max(4, len(plot_df) * 0.6)))
+    bars = ax.barh(plot_df["Expenses Type"], plot_df["Total Amount"], color=COLOR_CATEGORY, edgecolor="white")
+    for bar, val in zip(bars, plot_df["Total Amount"]):
+        ax.text(
+            bar.get_width() + max(plot_df["Total Amount"]) * 0.02,
+            bar.get_y() + bar.get_height() / 2,
+            _dollar_label(val),
+            ha="left",
+            va="center",
+            fontsize=10,
+        )
+    ax.set_xlabel("Total Amount ($)")
+    ax.set_title("Expenses by Category", fontsize=14, fontweight="bold")
+    _clean_axes(ax)
+    ax.xaxis.set_major_formatter(mtick.FuncFormatter(lambda x, _: f"${x:,.0f}"))
     plt.tight_layout()
-    fig.savefig(os.path.join(FIGURES_DIR, "expenses_summary.png"))
+    fig.savefig(os.path.join(FIGURES_DIR, "expenses_summary.png"), dpi=150, bbox_inches="tight")
     plt.close(fig)
 
     return result
@@ -164,6 +217,7 @@ def cash_flow_summary(df: pd.DataFrame, client_id: int, start_date: str, end_dat
     pd.DataFrame
         Columns: ['Date', 'Inflows', 'Outflows', 'Net Cash Flow', '% Savings'].
         Sorted by ascending date, rounded to 2 decimals.
+        Also saves a chart to reports/figures/cash_flow_summary.png.
     """
     df = _parse_amount_col(df)
 
@@ -193,9 +247,30 @@ def cash_flow_summary(df: pd.DataFrame, client_id: int, start_date: str, end_dat
         grouped["Date"] = grouped["date"].dt.strftime("%Y-%m-%d")
 
     grouped["Net Cash Flow"] = round(grouped["Inflows"] - grouped["Outflows"], 2)
-    grouped["% Savings"] = round(grouped["Net Cash Flow"] / grouped["Inflows"] * 100, 2)
+    grouped["% Savings"] = round(grouped["Net Cash Flow"] / grouped["Inflows"].replace(0, np.nan) * 100, 2).fillna(0)
 
-    return grouped[["Date", "Inflows", "Outflows", "Net Cash Flow", "% Savings"]].reset_index(drop=True)
+    result = grouped[["Date", "Inflows", "Outflows", "Net Cash Flow", "% Savings"]].reset_index(drop=True)
+
+    # Generate cash flow chart
+    os.makedirs(FIGURES_DIR, exist_ok=True)
+    fig, ax = plt.subplots(figsize=(10, 5))
+    x = np.arange(len(result))
+    width = 0.35
+    ax.bar(x - width / 2, result["Inflows"], width, label="Inflows", color=COLOR_INFLOW, edgecolor="white")
+    ax.bar(x + width / 2, result["Outflows"], width, label="Outflows", color=COLOR_OUTFLOW, edgecolor="white")
+    ax.plot(x, result["Net Cash Flow"], color=COLOR_NET, marker="o", linewidth=2, label="Net Cash Flow", zorder=5)
+    ax.set_xticks(x)
+    ax.set_xticklabels(result["Date"], rotation=45 if len(result) > 6 else 0, ha="right" if len(result) > 6 else "center")
+    ax.set_ylabel("Amount ($)")
+    ax.set_title("Cash Flow Over Time", fontsize=14, fontweight="bold")
+    ax.legend()
+    _clean_axes(ax)
+    ax.yaxis.set_major_formatter(mtick.FuncFormatter(lambda x, _: f"${x:,.0f}"))
+    plt.tight_layout()
+    fig.savefig(os.path.join(FIGURES_DIR, "cash_flow_summary.png"), dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+    return result
 
 
 if __name__ == "__main__":
