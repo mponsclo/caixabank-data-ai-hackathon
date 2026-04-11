@@ -12,10 +12,31 @@ This document covers the 9-experiment journey from a naive baseline (AUPRC near 
 
 13.3 million credit card transactions spanning 2010 to 2019. Fraud rate: **0.15%** (1 in 665 transactions). A model that predicts "no fraud" for every transaction achieves 99.85% accuracy but catches zero fraud.
 
-**Metrics that matter:**
-- **AUPRC** (Area Under Precision-Recall Curve): the primary metric for imbalanced classification. Baseline = fraud rate (0.0015).
-- **Balanced Accuracy**: hackathon evaluation metric. Average of recall per class.
-- **Production F1**: precision-recall tradeoff at the operating threshold.
+### Metrics
+
+**AUPRC (Area Under Precision-Recall Curve)**: the primary metric for imbalanced classification. It summarizes the tradeoff between precision and recall across all thresholds. A random classifier scores equal to the fraud rate (0.0015), so any score above that represents learned signal.
+
+$$\text{Precision} = \frac{TP}{TP + FP} \qquad \text{Recall} = \frac{TP}{TP + FN}$$
+
+AUPRC is the area under the curve of Precision (y-axis) vs Recall (x-axis) as the decision threshold varies from 0 to 1.
+
+**Balanced Accuracy**: the hackathon evaluation metric. It averages the recall of each class, so both fraud and non-fraud detection matter equally:
+
+$$\text{BA} = \frac{1}{2}\left(\frac{TP}{TP + FN} + \frac{TN}{TN + FP}\right)$$
+
+**F1 Score**: the harmonic mean of precision and recall, used to select the production operating threshold:
+
+$$F_1 = 2 \cdot \frac{\text{Precision} \cdot \text{Recall}}{\text{Precision} + \text{Recall}}$$
+
+## Background: LightGBM
+
+[LightGBM](https://lightgbm.readthedocs.io/) is a gradient boosting framework that builds an ensemble of decision trees sequentially. Each tree corrects the errors of the previous ones by fitting the gradient of the loss function. Compared to other boosting libraries (XGBoost, CatBoost), LightGBM is faster because it uses histogram-based splitting and a leaf-wise growth strategy instead of level-wise.
+
+Why LightGBM for this problem:
+- **Handles mixed feature types natively**: categorical columns (`use_chip`, `card_brand`) are split directly without one-hot encoding
+- **Efficient on large datasets**: 13M rows train in minutes, not hours
+- **Supports custom objectives**: we plug in a focal loss function directly (see below)
+- **Robust to missing values**: NaN features (e.g., `seconds_since_last_txn` for a client's first transaction) are handled without imputation
 
 ## The Experiment Journey
 
@@ -41,15 +62,28 @@ This document covers the 9-experiment journey from a naive baseline (AUPRC near 
 
 The single largest improvement (+19% AUPRC). Replaced `scale_pos_weight` tuning entirely.
 
-**Why `scale_pos_weight` isn't enough:** It uniformly upweights ALL positive samples by a constant factor. Easy-to-classify fraud (obvious patterns) gets the same weight as hard-to-classify fraud (subtle patterns). The gradient is dominated by the easy cases.
+Focal loss was originally introduced by [Lin et al. (2017)](https://arxiv.org/abs/1708.02002) for object detection in computer vision, where background pixels vastly outnumber object pixels. The same imbalance structure applies to fraud detection.
 
-**Why focal loss works:** It multiplies the loss by `(1 - pt)^gamma` where `pt` is the model's confidence. Correctly classified examples (high `pt`) get near-zero weight. Hard, misclassified examples get full weight. The gradient concentrates where the model is struggling.
+The standard cross-entropy loss treats every sample equally:
 
-LightGBM accepts custom objectives via `focal_loss_objective` and `focal_loss_eval` functions in [`src/models/train_model.py`](../src/models/train_model.py). One important tradeoff: focal loss returns raw logits, not probabilities. The serving layer must apply sigmoid to convert to [0, 1].
+$$\text{CE}(p_t) = -\log(p_t)$$
+
+where $p_t$ is the model's predicted probability for the true class. Focal loss adds a modulating factor:
+
+$$\text{FL}(p_t) = -\alpha \cdot (1 - p_t)^\gamma \cdot \log(p_t)$$
+
+- When the model is **confident and correct** ($p_t$ close to 1): $(1 - p_t)^\gamma$ approaches 0, so the loss is near zero. The model doesn't waste gradient on examples it already gets right.
+- When the model is **wrong** ($p_t$ close to 0): $(1 - p_t)^\gamma$ approaches 1, so the loss is full strength. The gradient concentrates on the hard examples.
+- $\gamma = 2.0$ controls how aggressively easy examples are down-weighted.
+- $\alpha = 0.25$ balances the relative weight of the positive vs negative class.
+
+**Why `scale_pos_weight` isn't enough:** It uniformly upweights ALL positive samples by a constant factor. Easy-to-classify fraud gets the same weight as hard-to-classify fraud. Focal loss is strictly more nuanced because it adapts per-example based on difficulty.
+
+LightGBM accepts custom objectives, so the focal loss integrates directly via `focal_loss_objective` and `focal_loss_eval` in [`src/models/train_model.py`](../src/models/train_model.py). One important consequence: focal loss returns raw logits, not probabilities. The serving layer must apply sigmoid ($p = 1 / (1 + e^{-x})$) to convert to [0, 1].
 
 ### Out-of-Fold Target Encoding
 
-Categorical features `mcc` (Merchant Category Code) and `merchant_id` have thousands of unique values. One-hot encoding would create thousands of sparse columns. Target encoding maps each category to its smoothed fraud rate.
+Categorical features `mcc` (Merchant Category Code) and `merchant_id` have thousands of unique values. One-hot encoding would create thousands of sparse columns. Target encoding replaces each category with its smoothed fraud rate, collapsing high-cardinality categoricals into a single numeric column.
 
 The naive approach (compute fraud rate per category on the full training set) leaks the target into the features. Out-of-fold encoding prevents this:
 
@@ -58,7 +92,11 @@ The naive approach (compute fraud rate per category on the full training set) le
 3. Apply to the held-out fold
 4. For test/serving data, use the full training set mapping
 
-The smoothing parameter `alpha=10` pulls rare categories toward the global mean, preventing overfitting on categories with few observations.
+The smoothing formula prevents overfitting on rare categories:
+
+$$\text{encoded} = \frac{n_{\text{fraud}} + \alpha \cdot \mu_{\text{global}}}{n_{\text{total}} + \alpha}$$
+
+where $\alpha = 10$ pulls categories with few observations toward the global mean $\mu_{\text{global}}$. A merchant with 3 transactions and 1 fraud isn't reliably "33% fraudulent"; the smoothing tempers that to something closer to the global average.
 
 After target encoding, `mcc_te` became the #1 feature by importance (2818 splits). The model learned which merchant categories are riskiest.
 
@@ -70,7 +108,7 @@ The biggest improvements came from domain-informed features, not model tuning:
 - **Channel features** (Exp 4): `is_online` transactions have 28x the fraud rate vs. swipe transactions.
 - **Combined signals** (Exp 8): `online_new_merchant` (online AND first time at this merchant) captures a compound risk pattern the model can't easily learn from individual features.
 
-See the [EDA notebook](../reports/01-eda-fraud-detection.ipynb) for the full analysis behind these features.
+See the [EDA notebook](../reports/01-eda-fraud-detection.ipynb) for the full analysis behind these features, and the [transformation guide](2-transformation.md) for how they're computed in SQL.
 
 ## Leakage Detection
 
@@ -123,6 +161,32 @@ The model optimizes two thresholds:
 - **F1-optimal** (threshold=0.37): F1=0.60, **Precision=0.64, Recall=0.57**. The production operating point.
 
 At the production threshold: for every 10 flagged transactions, ~6 are actual fraud. The model catches 57% of all fraud. This is a usable system for a fraud investigation team.
+
+## Serving via FastAPI
+
+The trained model is served through a FastAPI endpoint on Cloud Run at `/predict/fraud`. See [`app/routers/fraud.py`](../app/routers/fraud.py) for the full implementation.
+
+### How a request flows
+
+1. **Client sends a POST** with transaction features (amount, use_chip, mcc, merchant_id, txn_hour, etc.)
+2. **Feature vector construction**: the endpoint computes derived features inline (`abs_amount`, `log_amount`, `is_expense`, `amount_to_limit_ratio`)
+3. **Target encoding at serving time**: the pre-computed encoding maps (loaded at startup from `target_encodings.pkl`) look up the smoothed fraud rate for the transaction's `mcc` and `merchant_id`. Unseen categories fall back to the global mean, so new merchants don't crash the API.
+4. **Missing feature padding**: the model was trained on 55 features, but the API only receives a subset. Missing columns are filled with 0.
+5. **Prediction**: `model.predict(df)` returns a raw logit (because focal loss is the objective)
+6. **Sigmoid correction**: the logit is converted to a probability via $p = 1 / (1 + e^{-x})$
+7. **Threshold decision**: if $p \geq 0.35$, the transaction is flagged as fraud
+
+### How this would work in production
+
+The current implementation is a synchronous API that processes one transaction at a time. In a real production system, several things would change:
+
+**Model loading.** Models are currently baked into the Docker image as `.pkl` files. In production, they would live in a model registry (e.g., Vertex AI Model Registry) with versioning, A/B testing, and rollback. The API would load models from the registry at startup, and model updates would not require a new Docker build.
+
+**Feature computation.** The API currently receives pre-computed features from the client. In production, the API would receive raw transaction data and compute features in real-time. Velocity features (`card_txn_count_24h`, `seconds_since_last_txn`) would come from a feature store (e.g., Vertex AI Feature Store or Redis) that maintains rolling aggregates as events arrive, rather than being recomputed from BigQuery on every request.
+
+**Batch vs real-time.** The current API serves individual predictions. For high-throughput scenarios (thousands of transactions per second), you'd use batch prediction via Cloud Run Jobs or Dataflow, or switch to an async pattern where transactions are scored via Pub/Sub and results written to BigQuery.
+
+**Monitoring.** There is no prediction logging or model monitoring today. In production, every prediction would be logged to a BigQuery `predictions_log` table with the input features, raw score, and decision. A scheduled job would compute Population Stability Index (PSI) to detect distribution drift and alert when the model's input distribution shifts significantly from training.
 
 ## Architecture
 
