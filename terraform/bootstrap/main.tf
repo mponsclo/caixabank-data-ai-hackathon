@@ -49,6 +49,10 @@ locals {
     "sts.googleapis.com",                  # Required for Workload Identity Federation
     "cloudresourcemanager.googleapis.com", # Required for IAM policy reads
     "aiplatform.googleapis.com",           # Vertex AI scaffold (inactive by default)
+    "cloudfunctions.googleapis.com",       # Cloud Functions Gen2
+    "cloudscheduler.googleapis.com",       # Cloud Scheduler (cron triggers)
+    "pubsub.googleapis.com",              # Pub/Sub messaging
+    "eventarc.googleapis.com",            # EventArc (Gen2 function triggers)
   ]
 }
 
@@ -112,6 +116,22 @@ resource "google_storage_bucket" "raw_data" {
 }
 
 # ---------------------------------------------------------------------------
+# Functions Source Bucket — zip archives for Cloud Function deployments
+# ---------------------------------------------------------------------------
+
+resource "google_storage_bucket" "functions_source" {
+  name     = "${var.project_id}-functions-source"
+  project  = google_project.this.project_id
+  location = var.region
+
+  uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+  force_destroy               = true
+
+  depends_on = [google_project_service.apis]
+}
+
+# ---------------------------------------------------------------------------
 # KMS — Keyring + Key for SOPS encryption of tfvars
 # ---------------------------------------------------------------------------
 
@@ -150,6 +170,14 @@ resource "google_service_account" "cloud_run" {
 resource "google_service_account" "github_actions" {
   account_id   = "github-actions-sa"
   display_name = "GitHub Actions via Workload Identity Federation"
+  project      = google_project.this.project_id
+
+  depends_on = [google_project_service.apis]
+}
+
+resource "google_service_account" "pipeline" {
+  account_id   = "pipeline-sa"
+  display_name = "Ingestion pipeline (Cloud Functions + Pub/Sub + BigQuery)"
   project      = google_project.this.project_id
 
   depends_on = [google_project_service.apis]

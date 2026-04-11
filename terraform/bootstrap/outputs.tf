@@ -33,6 +33,16 @@ output "github_actions_sa_email" {
   value       = google_service_account.github_actions.email
 }
 
+output "pipeline_sa_email" {
+  description = "Pipeline service account email (Cloud Functions)"
+  value       = google_service_account.pipeline.email
+}
+
+output "functions_source_bucket" {
+  description = "GCS bucket for Cloud Function source code archives"
+  value       = google_storage_bucket.functions_source.name
+}
+
 output "wif_provider" {
   description = "Workload Identity Federation provider (set as GitHub secret WIF_PROVIDER)"
   value       = google_iam_workload_identity_pool_provider.github.name
