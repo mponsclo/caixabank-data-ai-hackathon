@@ -1,6 +1,6 @@
 # Banking Fraud Detection Pipeline
 
-[![Lint](https://github.com/mponsclo/caixabank-data-ai-hackathon/actions/workflows/lint.yml/badge.svg)](https://github.com/mponsclo/caixabank-data-ai-hackathon/actions/workflows/lint.yml)
+[![Lint](https://github.com/mponsclo/banking-fraud-detection-pipeline/actions/workflows/lint.yml/badge.svg)](https://github.com/mponsclo/banking-fraud-detection-pipeline/actions/workflows/lint.yml)
 [![Python 3.10](https://img.shields.io/badge/python-3.10-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
@@ -150,8 +150,8 @@ The project implements IaC, CI/CD, typed APIs, and data quality testing. These i
 
 ```bash
 # Clone and set up environment
-git clone https://github.com/mponsclo/caixabank-data-ai-hackathon.git
-cd caixabank-data-ai-hackathon
+git clone https://github.com/mponsclo/banking-fraud-detection-pipeline.git
+cd banking-fraud-detection-pipeline
 python -m venv venv && source venv/bin/activate
 
 # Install dependencies
