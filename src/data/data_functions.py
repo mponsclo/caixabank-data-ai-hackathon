@@ -24,23 +24,25 @@ COLOR_NET = "#003547"
 COLOR_CATEGORY = "#007A8C"
 
 # Professional chart styling
-plt.rcParams.update({
-    "font.family": "sans-serif",
-    "font.sans-serif": ["Inter", "Helvetica Neue", "Arial", "sans-serif"],
-    "axes.facecolor": "#FAFBFC",
-    "figure.facecolor": "#FFFFFF",
-    "axes.edgecolor": "#E5E7EB",
-    "axes.labelcolor": "#1A1A2E",
-    "text.color": "#1A1A2E",
-    "xtick.color": "#6B7280",
-    "ytick.color": "#6B7280",
-    "axes.grid": True,
-    "grid.alpha": 0.3,
-    "grid.color": "#E5E7EB",
-    "grid.linestyle": "--",
-    "axes.spines.top": False,
-    "axes.spines.right": False,
-})
+plt.rcParams.update(
+    {
+        "font.family": "sans-serif",
+        "font.sans-serif": ["Inter", "Helvetica Neue", "Arial", "sans-serif"],
+        "axes.facecolor": "#FAFBFC",
+        "figure.facecolor": "#FFFFFF",
+        "axes.edgecolor": "#E5E7EB",
+        "axes.labelcolor": "#1A1A2E",
+        "text.color": "#1A1A2E",
+        "xtick.color": "#6B7280",
+        "ytick.color": "#6B7280",
+        "axes.grid": True,
+        "grid.alpha": 0.3,
+        "grid.color": "#E5E7EB",
+        "grid.linestyle": "--",
+        "axes.spines.top": False,
+        "axes.spines.right": False,
+    }
+)
 
 
 def _clean_axes(ax):
@@ -200,8 +202,12 @@ def expenses_summary(df: pd.DataFrame, client_id: int, start_date: str, end_date
     os.makedirs(FIGURES_DIR, exist_ok=True)
     fig, ax = plt.subplots(figsize=(10, max(4, len(plot_df) * 0.55)))
     bars = ax.barh(
-        plot_df["Expenses Type"], plot_df["Total Amount"],
-        color=COLOR_CATEGORY, edgecolor="white", linewidth=1.2, zorder=3,
+        plot_df["Expenses Type"],
+        plot_df["Total Amount"],
+        color=COLOR_CATEGORY,
+        edgecolor="white",
+        linewidth=1.2,
+        zorder=3,
     )
     for bar, val in zip(bars, plot_df["Total Amount"]):
         ax.text(
@@ -284,11 +290,40 @@ def cash_flow_summary(df: pd.DataFrame, client_id: int, start_date: str, end_dat
     fig, ax = plt.subplots(figsize=(10, 4.5))
     x = np.arange(len(result))
     width = 0.33
-    ax.bar(x - width / 2, result["Inflows"], width, label="Inflows", color=COLOR_INFLOW, edgecolor="white", linewidth=1.2, zorder=3)
-    ax.bar(x + width / 2, result["Outflows"], width, label="Outflows", color=COLOR_OUTFLOW, edgecolor="white", linewidth=1.2, zorder=3)
-    ax.plot(x, result["Net Cash Flow"], color=COLOR_NET, marker="o", linewidth=2.5, markersize=6, label="Net Cash Flow", zorder=5)
+    ax.bar(
+        x - width / 2,
+        result["Inflows"],
+        width,
+        label="Inflows",
+        color=COLOR_INFLOW,
+        edgecolor="white",
+        linewidth=1.2,
+        zorder=3,
+    )
+    ax.bar(
+        x + width / 2,
+        result["Outflows"],
+        width,
+        label="Outflows",
+        color=COLOR_OUTFLOW,
+        edgecolor="white",
+        linewidth=1.2,
+        zorder=3,
+    )
+    ax.plot(
+        x,
+        result["Net Cash Flow"],
+        color=COLOR_NET,
+        marker="o",
+        linewidth=2.5,
+        markersize=6,
+        label="Net Cash Flow",
+        zorder=5,
+    )
     ax.set_xticks(x)
-    ax.set_xticklabels(result["Date"], rotation=45 if len(result) > 6 else 0, ha="right" if len(result) > 6 else "center")
+    ax.set_xticklabels(
+        result["Date"], rotation=45 if len(result) > 6 else 0, ha="right" if len(result) > 6 else "center"
+    )
     ax.set_ylabel("Amount ($)", fontsize=10, fontweight="500")
     ax.legend(frameon=True, fancybox=True, shadow=False, framealpha=0.9, edgecolor="#E5E7EB", fontsize=9)
     _clean_axes(ax)

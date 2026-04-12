@@ -1,0 +1,13 @@
+# GitHub Linguist overrides — control what shows up in the language stats
+# https://github.com/github-linguist/linguist/blob/main/docs/overrides.md
+
+# Jupyter notebooks are exploratory analysis, not production code.
+# Marked as documentation so they don't dominate the language stats.
+*.ipynb linguist-documentation
+
+# Generated code / bundled assets — don't count towards language stats
+*_pb2.py linguist-generated
+src/agent/fonts/** linguist-vendored
+
+# Showcase PDFs are binary artifacts, not source
+reports/showcase/*.pdf -diff binary

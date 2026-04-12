@@ -301,27 +301,31 @@ def generate_pdf(client_id, start_date, end_date, ee_df, es_df, cf_df, output_fo
     if es_df is not None and not es_df.empty:
         n_categories = len(es_df)
         for _, row in es_df.iterrows():
-            es_rows.append({
-                "category": str(row["Expenses Type"]),
-                "total": _fmt_currency(row["Total Amount"]),
-                "average": _fmt_currency(row["Average"]),
-                "max": _fmt_currency(row["Max"]),
-                "min": _fmt_currency(row["Min"]),
-                "count": f"{int(row['Num. Transactions']):,}",
-            })
+            es_rows.append(
+                {
+                    "category": str(row["Expenses Type"]),
+                    "total": _fmt_currency(row["Total Amount"]),
+                    "average": _fmt_currency(row["Average"]),
+                    "max": _fmt_currency(row["Max"]),
+                    "min": _fmt_currency(row["Min"]),
+                    "count": f"{int(row['Num. Transactions']):,}",
+                }
+            )
 
     # --- Build cash-flow row list and totals ---
     cf_rows = []
     cf_totals = None
     if cf_df is not None and not cf_df.empty:
         for _, row in cf_df.iterrows():
-            cf_rows.append({
-                "date": str(row["Date"]),
-                "inflows": _fmt_currency(row["Inflows"]),
-                "outflows": _fmt_currency(row["Outflows"]),
-                "net": _fmt_currency(row["Net Cash Flow"]),
-                "savings_pct": f"{row['% Savings']:.1f}%",
-            })
+            cf_rows.append(
+                {
+                    "date": str(row["Date"]),
+                    "inflows": _fmt_currency(row["Inflows"]),
+                    "outflows": _fmt_currency(row["Outflows"]),
+                    "net": _fmt_currency(row["Net Cash Flow"]),
+                    "savings_pct": f"{row['% Savings']:.1f}%",
+                }
+            )
         total_inflows = cf_df["Inflows"].sum()
         total_outflows = cf_df["Outflows"].sum()
         total_net = cf_df["Net Cash Flow"].sum()
