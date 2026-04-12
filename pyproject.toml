@@ -1,7 +1,12 @@
 [tool.ruff]
 target-version = "py310"
 line-length = 120
-exclude = ["*_pb2.py"]
+exclude = [
+    "*_pb2.py",      # Generated Protobuf code
+    "*.ipynb",       # Exploratory notebooks (not linted)
+    "myenv",         # Local virtualenv
+    ".venv",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]

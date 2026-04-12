@@ -26,5 +26,5 @@ variable "region" {
 variable "github_repo" {
   description = "GitHub repository (owner/repo) for Workload Identity Federation"
   type        = string
-  default     = "mponsclo/caixabank-data-ai-hackathon"
+  default     = "mponsclo/banking-fraud-detection-pipeline"
 }
