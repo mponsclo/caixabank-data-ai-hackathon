@@ -34,7 +34,7 @@ End-to-end ML pipeline for detecting fraud in 13M credit card transactions (0.15
 |------|-------------|--------|
 | 1. Data Queries | Exact match | 4/4 correct |
 | 2. Data Functions | Pytest | 6/6 pass |
-| 3. Fraud Detection | Balanced Accuracy | BA=0.97, AUPRC=0.61, F1=0.60 |
+| 3. Fraud Detection | Balanced Accuracy | BA=0.97, AUPRC=0.61, Precision=0.64 / Recall=0.57 |
 | 4. Expense Forecast | R2 Score | R2=0.76 (near theoretical ceiling) |
 | 5. AI Agent | Pytest | 3/3 pass |
 
@@ -62,62 +62,43 @@ End-to-end ML pipeline for detecting fraud in 13M credit card transactions (0.15
 
 ## Architecture
 
+**Runtime data flow** — how a transaction becomes a prediction:
+
 ```mermaid
-graph TB
-  subgraph Ingestion["Ingestion Pipeline"]
-    direction LR
-    Scheduler["Cloud Scheduler<br/><i>daily cron</i>"]:::infra --> Producer["Producer<br/>Cloud Function"]:::compute
-    Producer -->|Protobuf| PubSub["Pub/Sub"]:::storage
-    PubSub --> Consumer["Consumer<br/>Cloud Function"]:::compute
-    PubSub -.->|failed| DLQ["DLQ"]:::error
-  end
-
-  subgraph Data["Data Layer"]
-    direction LR
-    GCS["GCS / Seeds"]:::storage --> Landing["landing<br/>staging views"]:::compute
-    Landing --> Logic["logic<br/>intermediate"]:::compute
-    Logic --> Marts["presentation<br/>mart tables"]:::storage
-  end
-
-  subgraph ML["ML Layer"]
-    direction LR
-    Fraud["Fraud Detection<br/>Focal Loss + Target Encoding<br/><b>BA=0.97 &bull; AUPRC=0.61</b>"]:::ml
-    Forecast["Expense Forecast<br/>Direct 3-step<br/><b>R2=0.76</b>"]:::ml
-  end
-
-  subgraph Serving["Serving"]
-    API["/predict/fraud<br/>/predict/forecast<br/>/report/generate"]:::compute
-    Agent["AI Agent<br/>Vertex AI / Ollama / Regex"]:::infra
-  end
-
-  subgraph Infra["Infrastructure"]
-    direction LR
-    TF["Terraform"]:::infra --> BQ["BigQuery"]:::storage
-    TF --> CR["Cloud Run"]:::compute
-    TF --> AR["Artifact Registry"]:::storage
-    TF --> KMS["KMS + IAM + WIF"]:::infra
-    TF --> FN["Cloud Functions<br/>+ Pub/Sub"]:::compute
-  end
-
-  subgraph CICD["CI/CD"]
-    direction LR
-    TFW["validate / plan / apply"]:::compute
-    Docker["build / push / deploy"]:::compute
-    Lint["ruff lint"]:::compute
-  end
-
-  Consumer -->|streaming insert| Landing
-  Marts --> Fraud
-  Marts --> Forecast
-  Fraud --> API
-  Forecast --> API
-  Agent --> API
+flowchart LR
+  GCS["CSV in GCS"]:::storage --> Producer["Producer<br/>Cloud Function"]:::compute
+  Producer -->|Protobuf| PubSub["Pub/Sub"]:::storage
+  PubSub --> Consumer["Consumer<br/>Cloud Function"]:::compute
+  PubSub -.-> DLQ["DLQ"]:::error
+  Consumer --> BQ["BigQuery<br/>landing → logic → marts<br/><i>dbt</i>"]:::storage
+  BQ --> Models["LightGBM Models<br/><b>Fraud</b> BA=0.97 · AUPRC=0.61<br/><b>Forecast</b> R2=0.76"]:::ml
+  Models --> API["FastAPI on Cloud Run<br/>/predict/fraud<br/>/predict/forecast<br/>/report/generate"]:::compute
+  API --> Client(["Client"]):::client
 
   classDef storage fill:#d6eaf8,stroke:#2e86c1,color:#1a1a1a
   classDef compute fill:#d5f5e3,stroke:#1e8449,color:#1a1a1a
   classDef ml fill:#fdebd0,stroke:#e67e22,color:#1a1a1a
-  classDef infra fill:#e8daef,stroke:#7d3c98,color:#1a1a1a
   classDef error fill:#fadbd8,stroke:#cb4335,color:#1a1a1a
+  classDef client fill:#f4f4f4,stroke:#555,color:#1a1a1a
+```
+
+**Platform & CI/CD** — how the system is provisioned and deployed:
+
+```mermaid
+flowchart LR
+  Dev["Developer"]:::client -->|PR| GH["GitHub Actions"]:::compute
+  GH -->|OIDC| WIF["Workload Identity<br/>Federation"]:::infra
+  WIF --> TF["Terraform"]:::infra
+  WIF --> Docker["Docker Build"]:::compute
+  SOPS["SOPS + KMS<br/>encrypted tfvars"]:::infra --> TF
+  TF -->|provisions| GCP["GCP Resources<br/>BigQuery · Cloud Run · Pub/Sub<br/>Cloud Functions · Artifact Registry · IAM"]:::storage
+  Docker -->|push| AR["Artifact Registry"]:::storage
+  AR -->|deploy| CR["Cloud Run"]:::compute
+
+  classDef storage fill:#d6eaf8,stroke:#2e86c1,color:#1a1a1a
+  classDef compute fill:#d5f5e3,stroke:#1e8449,color:#1a1a1a
+  classDef infra fill:#e8daef,stroke:#7d3c98,color:#1a1a1a
+  classDef client fill:#f4f4f4,stroke:#555,color:#1a1a1a
 ```
 
 ---
@@ -130,7 +111,7 @@ Instead of ad-hoc pandas preprocessing, the data layer uses a **dbt pipeline** w
 
 ### Fraud Detection (LightGBM + Focal Loss)
 
-**9 experiments** documented in [experiments.md](docs/8-experiments.md), from a naive baseline (AUPRC=0) to the final model:
+**9 experiments** documented in [docs/8-experiments.md](docs/8-experiments.md), from a naive baseline (AUPRC=0) to the final model:
 
 | Technique | Impact |
 |-----------|--------|
@@ -264,12 +245,14 @@ curl -X POST http://localhost:8080/report/generate \
 
 ## Data
 
-The datasets are **not included** in this repository. To reproduce the results, you would need:
+The datasets are **not included** in this repository (too large for git, ~1.3GB total). To reproduce the results, you would need:
 
-- `data/raw/transactions_data.csv`: Credit card transactions dataset (2010s decade) with columns: transaction ID, client ID, card ID, amount, merchant, MCC code, timestamps, errors, etc.
-- `data/raw/mcc_codes.json`: Merchant Category Code mappings (109 categories).
-- `data/raw/train_fraud_labels.json`: Binary fraud labels for training the detection model.
+- `data/raw/transactions_data.csv` (~1.2GB, 13M rows): Credit card transactions dataset (2010s decade) with columns: transaction ID, client ID, card ID, amount, merchant, MCC code, timestamps, errors, etc.
+- `data/raw/mcc_codes.json` (~6KB): Merchant Category Code mappings (109 categories).
+- `data/raw/train_fraud_labels.json` (~100MB): Binary fraud labels for training the detection model.
 - Client and card data were fetched from APIs (no longer available) and stored as `clients_data_api.csv` and `card_data_api.csv`.
+
+The large CSV is loaded to GCS + BigQuery via `make load-data` (see [scripts/load_raw_data.sh](scripts/load_raw_data.sh)); smaller files are committed as dbt seeds.
 
 ---
 
